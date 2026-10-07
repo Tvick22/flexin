@@ -37,6 +37,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7178bddc-6d2a-4382-ba7d-7162b75c5930"
+      }
+    },
+    "owner": "tvicks-team"
   }
 }
