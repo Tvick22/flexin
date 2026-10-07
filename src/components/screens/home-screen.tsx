@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Avatar, Card, Icon, IconButton, SectionHeader } from '@/components/flexin/ui';
+import { Avatar, Card, EmptyState, Icon, IconButton, SectionHeader } from '@/components/flexin/ui';
 import { Colors, Plate, Radius, Space, Type, onRankColor, rankColor } from '@/constants/flexin-theme';
 import {
   mockFeed,
@@ -49,14 +49,29 @@ export function HomeScreen() {
         </Pressable>
 
         <SectionHeader title="Last workout" />
-        <LastWorkoutCard workout={mockLastWorkout} unit={mockMe.unit} />
+        {mockLastWorkout ? (
+          <LastWorkoutCard workout={mockLastWorkout} unit={mockMe.unit} />
+        ) : (
+          <Card>
+            <EmptyState title="No workouts yet" body="Tap Start workout to log your first session." />
+          </Card>
+        )}
 
         <SectionHeader title="Friend activity" />
-        <Card style={styles.feedCard}>
-          {mockFeed.map((item, i) => (
-            <FeedRow key={item.id} item={item} last={i === mockFeed.length - 1} />
-          ))}
-        </Card>
+        {mockFeed.length > 0 ? (
+          <Card style={styles.feedCard}>
+            {mockFeed.map((item, i) => (
+              <FeedRow key={item.id} item={item} last={i === mockFeed.length - 1} />
+            ))}
+          </Card>
+        ) : (
+          <Card>
+            <EmptyState
+              title="No activity yet"
+              body="Add friends and their workouts, PRs and flexes will show up here."
+            />
+          </Card>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -68,6 +83,25 @@ function RaceCard({ race, meId }: { race: WeeklyRace; meId: string }) {
   const ahead = meIndex > 0 ? race.standings[meIndex - 1] : null;
   const behind = race.standings[meIndex + 1];
   const maxVolume = Math.max(...race.standings.map((s) => s.volume), 1);
+
+  // Racing alone isn't a race: no rank or plate color until there's a rival.
+  if (race.standings.length < 2) {
+    return (
+      <Card dark>
+        <View style={styles.raceTop}>
+          <Text style={[Type.label, { color: Colors.onInkCardMuted }]}>Weekly race · volume</Text>
+          <Text style={[Type.caption, { color: Colors.onInkCardMuted }]}>{timeUntil(race.endsAt)}</Text>
+        </View>
+        <View style={styles.raceEmpty}>
+          <EmptyState
+            dark
+            title="No one to race yet"
+            body={`Add friends to compete on weekly volume. You're at ${formatNumber(me?.volume ?? 0)} ${race.unit} this week.`}
+          />
+        </View>
+      </Card>
+    );
+  }
 
   let gapText = '';
   if (ahead) {
@@ -245,6 +279,9 @@ const styles = StyleSheet.create({
     gap: Space.md,
     marginTop: Space.xs,
     marginBottom: Space.md,
+  },
+  raceEmpty: {
+    marginTop: Space.md,
   },
   raceRows: {
     gap: Space.md,

@@ -67,6 +67,15 @@ export function SectionHeader({ title, action, onAction }: { title: string; acti
   );
 }
 
+export function EmptyState({ title, body, dark }: { title: string; body: string; dark?: boolean }) {
+  return (
+    <View style={styles.empty}>
+      <Text style={[Type.bodyStrong, { color: dark ? Colors.onInkCard : Colors.text }]}>{title}</Text>
+      <Text style={[Type.caption, { color: dark ? Colors.onInkCardMuted : Colors.textMuted }]}>{body}</Text>
+    </View>
+  );
+}
+
 export function IconButton({ icon, onPress, label }: { icon: IconName; onPress: () => void; label: string }) {
   return (
     <Pressable
@@ -104,6 +113,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Space.xl,
     marginBottom: Space.sm,
+  },
+  empty: {
+    gap: 4,
   },
   iconButton: {
     width: 40,
