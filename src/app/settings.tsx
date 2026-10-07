@@ -1,5 +1,3 @@
-import { PlaceholderScreen } from '@/components/screens/placeholder-screen';
+import { SettingsScreen } from '@/components/screens/settings-screen';
 
-export default function SettingsRoute() {
-  return <PlaceholderScreen title="Settings" />;
-}
+export default SettingsScreen;

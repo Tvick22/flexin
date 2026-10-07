@@ -119,5 +119,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
     outlineWidth: 0,
+    outlineStyle: 'solid',
   },
 });

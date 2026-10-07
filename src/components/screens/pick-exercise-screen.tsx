@@ -131,7 +131,15 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     backgroundColor: Colors.surface,
   },
-  searchInput: { flex: 1, height: '100%', color: Colors.text, fontSize: 16, fontWeight: '600', outlineWidth: 0 },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    outlineWidth: 0,
+    outlineStyle: 'solid',
+  },
   chipsScroll: { flexGrow: 0 },
   chips: { gap: Space.sm, paddingHorizontal: Space.lg, paddingVertical: Space.md },
   chip: {

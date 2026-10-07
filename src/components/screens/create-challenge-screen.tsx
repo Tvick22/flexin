@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     outlineWidth: 0,
+    outlineStyle: 'solid',
   },
   footer: {
     position: 'absolute',

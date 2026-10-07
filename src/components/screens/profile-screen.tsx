@@ -6,6 +6,7 @@ import { ChallengeResultRow } from '@/components/flexin/challenge-result-row';
 import { Avatar, Card, EmptyState, IconButton, SectionHeader } from '@/components/flexin/ui';
 import { Colors, Radius, Space, Type } from '@/constants/flexin-theme';
 import { mockMe, type Challenge, type UserSummary } from '@/data/mock-data';
+import { useMe } from '@/stores/auth-store';
 import { scoreSets, standingsFor, useChallengeStore } from '@/stores/challenge-store';
 import { useFriendsStore } from '@/stores/friends-store';
 import { formatNumber, formatWeight } from '@/utils/format';
@@ -33,6 +34,7 @@ function headToHead(finished: Challenge[]): Rivalry[] {
 }
 
 export function ProfileScreen() {
+  const me = useMe();
   const challenges = useChallengeStore((s) => s.challenges);
   const friendCount = useFriendsStore((s) => s.friends.length);
 
@@ -55,9 +57,9 @@ export function ProfileScreen() {
         </View>
 
         <View style={styles.identity}>
-          <Avatar name={mockMe.name} size={88} />
-          <Text style={[Type.title, { color: Colors.text, marginTop: Space.md }]}>{mockMe.name}</Text>
-          <Text style={[Type.body, { color: Colors.textMuted }]}>@{mockMe.handle}</Text>
+          <Avatar name={me.name ?? me.handle ?? '?'} size={88} />
+          <Text style={[Type.title, { color: Colors.text, marginTop: Space.md }]}>{me.name}</Text>
+          <Text style={[Type.body, { color: Colors.textMuted }]}>@{me.handle}</Text>
         </View>
 
         <Card style={styles.statsRow}>

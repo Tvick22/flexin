@@ -208,3 +208,11 @@ async def test_signing_in_on_two_devices_keeps_separate_sessions(
     tablet = await apple_sign_in(client, verifier)
     await client.post("/auth/logout", json={"refreshToken": phone["refreshToken"]})
     assert (await client.get("/me", headers=bearer(tablet))).status_code == 200
+
+
+async def test_dev_sign_in_creates_then_reuses_a_test_account(client: AsyncClient) -> None:
+    first = (await client.post("/auth/dev", json={"email": "tester@flexin.local"})).json()
+    again = (await client.post("/auth/dev", json={"email": "Tester@flexin.local"})).json()
+    assert first["isNewUser"] is True and again["isNewUser"] is False
+    assert first["user"]["id"] == again["user"]["id"]
+    assert (await client.get("/me", headers=bearer(again))).status_code == 200

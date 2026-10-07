@@ -104,6 +104,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     // Web: drop the browser focus ring (it reads as a plate color); focus shows as an ink border.
     outlineWidth: 0,
+    outlineStyle: 'solid',
   },
   inputFocused: { borderColor: Colors.text },
   error: { color: Colors.text, fontWeight: '800', textAlign: 'center', marginTop: Space.md },

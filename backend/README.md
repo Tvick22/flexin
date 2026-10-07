@@ -49,7 +49,12 @@ Send the access token as `Authorization: Bearer <accessToken>`. Access tokens la
 the user out everywhere (it means the token was copied).
 
 Config (`backend/.env`): `APPLE_CLIENT_IDS` (iOS bundle id), `GOOGLE_CLIENT_IDS`
-(OAuth client ids), `JWT_SECRET`. With `ENVIRONMENT=production` the server refuses to
+(OAuth client ids; must include the **web** client ID, which is the audience of the
+ID tokens the app gets), `JWT_SECRET`.
+
+`POST /auth/dev { email }` signs in as a test account with no provider. It exists only
+when `ENVIRONMENT=development`, so the app can be developed on web/simulators before
+Apple/Google credentials are set up. With `ENVIRONMENT=production` the server refuses to
 start with the development `JWT_SECRET`.
 
 ## Tests and linting

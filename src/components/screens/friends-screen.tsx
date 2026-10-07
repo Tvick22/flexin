@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar, Card, EmptyState, Icon, SectionHeader } from '@/components/flexin/ui';
 import { Colors, Radius, Space, Type } from '@/constants/flexin-theme';
-import { mockFriendCodeDirectory, mockMe, type Friend, type FriendRequest, type UserSummary } from '@/data/mock-data';
+import { mockFriendCodeDirectory, type Friend, type FriendRequest, type UserSummary } from '@/data/mock-data';
+import { useMe } from '@/stores/auth-store';
 import { friendsActions, useFriendsStore } from '@/stores/friends-store';
 import { formatFriendCode, isValidFriendCode, normalizeFriendCode } from '@/utils/friend-code';
 import { timeAgo } from '@/utils/format';
@@ -163,7 +164,8 @@ function AddFriends({
   const [code, setCode] = useState('');
   const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
   const [focused, setFocused] = useState(false);
-  const myCode = formatFriendCode(mockMe.friendCode);
+  const me = useMe();
+  const myCode = formatFriendCode(me.friendCode);
 
   async function shareCode() {
     try {
@@ -178,7 +180,7 @@ function AddFriends({
       setMessage({ kind: 'error', text: 'Friend codes are 8 characters, like 7K2Q-9MXP.' });
       return;
     }
-    if (code === mockMe.friendCode) {
+    if (code === me.friendCode) {
       setMessage({ kind: 'error', text: "That's your own code." });
       return;
     }
@@ -437,6 +439,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     // Web: drop the browser focus ring (it reads as a plate color); focus shows as an ink border.
     outlineWidth: 0,
+    outlineStyle: 'solid',
   },
   codeInputFocused: {
     borderColor: Colors.text,
