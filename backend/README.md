@@ -65,7 +65,8 @@ app/
   main.py        FastAPI app, CORS, routers
   config.py      settings from env vars / backend/.env
   db.py          async SQLAlchemy engine, session dependency, Base
-  models/        ORM models (none yet)
+  models/        ORM models (users, auth_identities so far)
+  codes.py       friend code alphabet/generator (matches the app)
   routers/       one module per area (health so far)
 migrations/      Alembic (async)
 tests/
