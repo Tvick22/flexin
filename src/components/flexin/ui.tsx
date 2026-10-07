@@ -14,6 +14,7 @@ const ICONS = {
   weight: { ios: 'scalemass', android: 'fitness_center', web: 'fitness_center' },
   trophy: { ios: 'trophy.fill', android: 'emoji_events', web: 'emoji_events' },
   flame: { ios: 'flame.fill', android: 'local_fire_department', web: 'local_fire_department' },
+  plus: { ios: 'plus', android: 'add', web: 'add' },
 } satisfies Record<string, SymbolViewProps['name']>;
 
 export type IconName = keyof typeof ICONS;

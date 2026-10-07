@@ -16,6 +16,7 @@ export default function RootLayout() {
         <Stack.Screen name="profile" />
         <Stack.Screen name="workout/index" />
         <Stack.Screen name="workout/[id]" />
+        <Stack.Screen name="challenge/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" />
         <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
       </Stack>

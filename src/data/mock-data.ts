@@ -16,21 +16,21 @@ export type UserSummary = {
 // GET /me
 export type Me = UserSummary & { unit: WeightUnit };
 
-// GET /races/current
-export type RaceStanding = {
+// GET /challenges/current  (null when there's no active challenge)
+export type ChallengeStanding = {
   rank: number;
   user: UserSummary;
   volume: number;
   workouts: number;
 };
 
-export type WeeklyRace = {
+export type WeeklyChallenge = {
   id: string;
   weekStart: string;
   endsAt: string;
   metric: 'volume';
   unit: WeightUnit;
-  standings: RaceStanding[];
+  standings: ChallengeStanding[];
 };
 
 // GET /workouts?limit=…  and  GET /workouts/{id}
@@ -59,7 +59,7 @@ export type LastWorkout = WorkoutSummary & {
 // GET /feed
 export type FeedItem = {
   id: string;
-  type: 'workout_completed' | 'pr' | 'race_overtake';
+  type: 'workout_completed' | 'pr' | 'challenge_overtake';
   user: UserSummary;
   createdAt: string;
   headline: string;
@@ -109,20 +109,13 @@ function startOfWeek(d: Date): Date {
 }
 
 const weekStart = startOfWeek(new Date(now));
-const weekEnd = new Date(weekStart.getTime() + 7 * DAY);
 
 const me: UserSummary = { id: 'u_me', name: 'Trevor Vick', handle: 'tvick', avatarUrl: null };
 
 export const mockMe: Me = { ...me, unit: 'lb' };
 
-export const mockWeeklyRace: WeeklyRace = {
-  id: 'race_current',
-  weekStart: weekStart.toISOString(),
-  endsAt: weekEnd.toISOString(),
-  metric: 'volume',
-  unit: 'lb',
-  standings: [{ rank: 1, user: me, volume: 0, workouts: 0 }],
-};
+// null = the user isn't in an active challenge (GET /challenges/current → 204 or `null`).
+export const mockWeeklyChallenge: WeeklyChallenge | null = null;
 
 export const mockLastWorkout: LastWorkout | null = null;
 

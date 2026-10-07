@@ -9,10 +9,10 @@ import {
   mockFeed,
   mockLastWorkout,
   mockMe,
-  mockWeeklyRace,
+  mockWeeklyChallenge,
   type FeedItem,
   type LastWorkout,
-  type WeeklyRace,
+  type WeeklyChallenge,
 } from '@/data/mock-data';
 import { formatNumber, ordinal, timeAgo, timeUntil } from '@/utils/format';
 
@@ -38,7 +38,11 @@ export function HomeScreen() {
           </View>
         </View>
 
-        <RaceCard race={mockWeeklyRace} meId={mockMe.id} />
+        {mockWeeklyChallenge ? (
+          <ChallengeCard challenge={mockWeeklyChallenge} meId={mockMe.id} />
+        ) : (
+          <CreateChallengeCard />
+        )}
 
         <Pressable
           onPress={() => router.push('/workout')}
@@ -77,26 +81,44 @@ export function HomeScreen() {
   );
 }
 
-function RaceCard({ race, meId }: { race: WeeklyRace; meId: string }) {
-  const meIndex = race.standings.findIndex((s) => s.user.id === meId);
-  const me = race.standings[meIndex];
-  const ahead = meIndex > 0 ? race.standings[meIndex - 1] : null;
-  const behind = race.standings[meIndex + 1];
-  const maxVolume = Math.max(...race.standings.map((s) => s.volume), 1);
+function CreateChallengeCard() {
+  return (
+    <Pressable
+      onPress={() => router.push('/challenge/new')}
+      accessibilityRole="button"
+      accessibilityLabel="Create a weekly challenge"
+      style={({ pressed }) => [styles.createChallenge, pressed && { opacity: 0.6 }]}>
+      <View style={styles.createChallengeIcon}>
+        <Icon name="plus" size={20} color={Colors.text} />
+      </View>
+      <Text style={[Type.heading, { color: Colors.text }]}>Create a challenge</Text>
+      <Text style={[Type.caption, { color: Colors.textMuted, textAlign: 'center' }]}>
+        Pick a few friends and compete to move the most volume this week.
+      </Text>
+    </Pressable>
+  );
+}
 
-  // Racing alone isn't a race: no rank or plate color until there's a rival.
-  if (race.standings.length < 2) {
+function ChallengeCard({ challenge, meId }: { challenge: WeeklyChallenge; meId: string }) {
+  const meIndex = challenge.standings.findIndex((s) => s.user.id === meId);
+  const me = challenge.standings[meIndex];
+  const ahead = meIndex > 0 ? challenge.standings[meIndex - 1] : null;
+  const behind = challenge.standings[meIndex + 1];
+  const maxVolume = Math.max(...challenge.standings.map((s) => s.volume), 1);
+
+  // No rank or plate color until someone else has joined.
+  if (challenge.standings.length < 2) {
     return (
       <Card dark>
-        <View style={styles.raceTop}>
-          <Text style={[Type.label, { color: Colors.onInkCardMuted }]}>Weekly race · volume</Text>
-          <Text style={[Type.caption, { color: Colors.onInkCardMuted }]}>{timeUntil(race.endsAt)}</Text>
+        <View style={styles.challengeTop}>
+          <Text style={[Type.label, { color: Colors.onInkCardMuted }]}>Weekly challenge · volume</Text>
+          <Text style={[Type.caption, { color: Colors.onInkCardMuted }]}>{timeUntil(challenge.endsAt)}</Text>
         </View>
-        <View style={styles.raceEmpty}>
+        <View style={styles.challengeEmpty}>
           <EmptyState
             dark
-            title="No one to race yet"
-            body={`Add friends to compete on weekly volume. You're at ${formatNumber(me?.volume ?? 0)} ${race.unit} this week.`}
+            title="Waiting for friends to join"
+            body={`Invite friends to compete on weekly volume. You're at ${formatNumber(me?.volume ?? 0)} ${challenge.unit} this week.`}
           />
         </View>
       </Card>
@@ -105,41 +127,41 @@ function RaceCard({ race, meId }: { race: WeeklyRace; meId: string }) {
 
   let gapText = '';
   if (ahead) {
-    gapText = `${formatNumber(ahead.volume - me.volume)} ${race.unit} behind ${ahead.user.name.split(' ')[0]}`;
+    gapText = `${formatNumber(ahead.volume - me.volume)} ${challenge.unit} behind ${ahead.user.name.split(' ')[0]}`;
   } else if (behind) {
-    gapText = `Leading by ${formatNumber(me.volume - behind.volume)} ${race.unit}`;
+    gapText = `Leading by ${formatNumber(me.volume - behind.volume)} ${challenge.unit}`;
   }
 
   return (
     <Card dark>
-      <View style={styles.raceTop}>
-        <Text style={[Type.label, { color: Colors.onInkCardMuted }]}>Weekly race · volume</Text>
-        <Text style={[Type.caption, { color: Colors.onInkCardMuted }]}>{timeUntil(race.endsAt)}</Text>
+      <View style={styles.challengeTop}>
+        <Text style={[Type.label, { color: Colors.onInkCardMuted }]}>Weekly challenge · volume</Text>
+        <Text style={[Type.caption, { color: Colors.onInkCardMuted }]}>{timeUntil(challenge.endsAt)}</Text>
       </View>
 
       {me ? (
-        <View style={styles.raceHero}>
+        <View style={styles.challengeHero}>
           <Text style={[Type.display, { color: rankColor(me.rank) }]}>{ordinal(me.rank)}</Text>
           <View style={{ flex: 1 }}>
             <Text style={[Type.bodyStrong, { color: Colors.onInkCard }]}>
-              {formatNumber(me.volume)} {race.unit}
+              {formatNumber(me.volume)} {challenge.unit}
             </Text>
             <Text style={[Type.caption, { color: Colors.onInkCardMuted }]}>{gapText}</Text>
           </View>
         </View>
       ) : null}
 
-      <View style={styles.raceRows}>
-        {race.standings.map((s) => {
+      <View style={styles.challengeRows}>
+        {challenge.standings.map((s) => {
           const isMe = s.user.id === meId;
           const color = rankColor(s.rank);
           return (
-            <View key={s.user.id} style={styles.raceRow}>
+            <View key={s.user.id} style={styles.challengeRow}>
               <View style={[styles.rankBadge, { backgroundColor: color }]}>
                 <Text style={[styles.rankBadgeText, { color: onRankColor(s.rank) }]}>{s.rank}</Text>
               </View>
               <View style={{ flex: 1, gap: 4 }}>
-                <View style={styles.raceRowLabels}>
+                <View style={styles.challengeRowLabels}>
                   <Text
                     numberOfLines={1}
                     style={[Type.caption, { color: isMe ? Colors.onInkCard : Colors.onInkCardMuted }, isMe && { fontWeight: '800' }]}>
@@ -268,33 +290,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Space.sm,
   },
-  raceTop: {
+  challengeTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  raceHero: {
+  challengeHero: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.md,
     marginTop: Space.xs,
     marginBottom: Space.md,
   },
-  raceEmpty: {
+  challengeEmpty: {
     marginTop: Space.md,
   },
-  raceRows: {
+  createChallenge: {
+    alignItems: 'center',
+    gap: Space.xs,
+    paddingVertical: Space.xl,
+    paddingHorizontal: Space.xl,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: Colors.textFaint,
+    backgroundColor: Colors.wash,
+  },
+  createChallengeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Space.xs,
+  },
+  challengeRows: {
     gap: Space.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.onInkCardLine,
     paddingTop: Space.md,
   },
-  raceRow: {
+  challengeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.md,
   },
-  raceRowLabels: {
+  challengeRowLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: Space.sm,

@@ -23,6 +23,7 @@ export const Palette = {
   inkMuted: 'rgba(22, 32, 58, 0.6)',
   inkFaint: 'rgba(22, 32, 58, 0.35)',
   line: 'rgba(22, 32, 58, 0.1)',
+  wash: 'rgba(22, 32, 58, 0.05)',
   onInk: '#FFFFFF',
   onInkMuted: 'rgba(255, 255, 255, 0.6)',
   onInkLine: 'rgba(255, 255, 255, 0.12)',
@@ -35,10 +36,12 @@ export const Colors = {
   textMuted: Palette.inkMuted,
   textFaint: Palette.inkFaint,
   line: Palette.line,
+  // Gray placeholder boxes (e.g. "create a challenge").
+  wash: Palette.wash,
   primary: Plate.red,
   onPrimary: Palette.onInk,
   pr: Plate.red,
-  // Dark "ink" cards (race, big three).
+  // Dark "ink" cards (challenge, big three).
   inkCard: Palette.ink,
   onInkCard: Palette.onInk,
   onInkCardMuted: Palette.onInkMuted,
