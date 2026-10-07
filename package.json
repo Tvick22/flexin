@@ -36,10 +36,15 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "db": "docker compose -f backend/docker-compose.yml up -d --wait",
+    "db:stop": "docker compose -f backend/docker-compose.yml down",
+    "api": "cd backend && uv run fastapi dev app/main.py",
+    "api:lan": "cd backend && uv run fastapi dev app/main.py --host 0.0.0.0",
+    "api:test": "cd backend && uv run pytest"
   },
   "private": true
 }

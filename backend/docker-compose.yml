@@ -1,0 +1,21 @@
+# Local Postgres for development. Start with:
+#   docker compose -f backend/docker-compose.yml up -d
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: flexin
+      POSTGRES_PASSWORD: flexin
+      POSTGRES_DB: flexin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flexin -d flexin"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  pgdata:
