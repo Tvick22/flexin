@@ -1,18 +1,12 @@
+import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar, Card, EmptyState, Icon, SectionHeader } from '@/components/flexin/ui';
 import { Colors, Radius, Space, Type } from '@/constants/flexin-theme';
-import {
-  mockFriendCodeDirectory,
-  mockFriendRequests,
-  mockFriends,
-  mockMe,
-  type Friend,
-  type FriendRequest,
-  type UserSummary,
-} from '@/data/mock-data';
+import { mockFriendCodeDirectory, mockMe, type Friend, type FriendRequest, type UserSummary } from '@/data/mock-data';
+import { friendsActions, useFriendsStore } from '@/stores/friends-store';
 import { formatFriendCode, isValidFriendCode, normalizeFriendCode } from '@/utils/friend-code';
 import { timeAgo } from '@/utils/format';
 
@@ -20,28 +14,15 @@ type Segment = 'friends' | 'add' | 'requests';
 
 export function FriendsScreen() {
   const [segment, setSegment] = useState<Segment>('friends');
-  // Local state until the API exists; each mutation maps to one REST call.
-  const [friends, setFriends] = useState<Friend[]>(mockFriends);
-  const [requests, setRequests] = useState<FriendRequest[]>(mockFriendRequests);
+  const friends = useFriendsStore((s) => s.friends);
+  const requests = useFriendsStore((s) => s.requests);
 
   const incoming = requests.filter((r) => r.direction === 'incoming');
   const outgoing = requests.filter((r) => r.direction === 'outgoing');
 
-  function sendRequest(user: UserSummary) {
-    setRequests((rs) => [
-      { id: `req_${user.id}_${Date.now()}`, direction: 'outgoing', user, createdAt: new Date().toISOString() },
-      ...rs,
-    ]);
-  }
-
-  function accept(request: FriendRequest) {
-    setRequests((rs) => rs.filter((r) => r.id !== request.id));
-    setFriends((fs) => [{ user: request.user, since: new Date().toISOString() }, ...fs]);
-  }
-
-  function remove(request: FriendRequest) {
-    setRequests((rs) => rs.filter((r) => r.id !== request.id));
-  }
+  const sendRequest = (user: UserSummary) => friendsActions.sendRequest(user);
+  const accept = (request: FriendRequest) => friendsActions.accept(request.id);
+  const remove = (request: FriendRequest) => friendsActions.remove(request.id);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -155,9 +136,16 @@ function FriendsList({ friends, onAdd }: { friends: Friend[]; onAdd: () => void 
         <PersonRow
           key={f.user.id}
           user={f.user}
-          subtitle={`@${f.user.handle} · friends since ${timeAgo(f.since)}`}
-          last={i === friends.length - 1}
-        />
+          subtitle={`@${f.user.handle}`}
+          last={i === friends.length - 1}>
+          <Pressable
+            onPress={() => router.push({ pathname: '/challenge/new', params: { friend: f.user.id } })}
+            accessibilityRole="button"
+            accessibilityLabel={`Challenge ${f.user.name}`}
+            style={({ pressed }) => [styles.smallPrimary, pressed && styles.pressed]}>
+            <Text style={[Type.caption, { color: Colors.onPrimary, fontWeight: '800' }]}>Challenge</Text>
+          </Pressable>
+        </PersonRow>
       ))}
     </Card>
   );

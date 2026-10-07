@@ -16,11 +16,15 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen
         name="index"
-        options={{ title: 'Home', tabBarIcon: ({ color }) => <Icon name="home" size={22} color={color} /> }}
+        options={{ title: 'Challenges', tabBarIcon: ({ color }) => <Icon name="trophy" size={22} color={color} /> }}
       />
       <Tabs.Screen
         name="friends"
         options={{ title: 'Friends', tabBarIcon: ({ color }) => <Icon name="friends" size={22} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{ title: 'Profile', tabBarIcon: ({ color }) => <Icon name="profile" size={22} color={color} /> }}
       />
     </Tabs>
   );

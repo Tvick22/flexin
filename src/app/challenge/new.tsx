@@ -1,5 +1,3 @@
-import { PlaceholderScreen } from '@/components/screens/placeholder-screen';
+import { CreateChallengeScreen } from '@/components/screens/create-challenge-screen';
 
-export default function NewChallengeRoute() {
-  return <PlaceholderScreen title="New challenge" note="Pick friends and a week to compete." />;
-}
+export default CreateChallengeScreen;

@@ -2,39 +2,70 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Avatar, Card, EmptyState, Icon, IconButton, SectionHeader } from '@/components/flexin/ui';
+import { ChallengeResultRow } from '@/components/flexin/challenge-result-row';
+import { Avatar, Card, EmptyState, IconButton, SectionHeader } from '@/components/flexin/ui';
 import { Colors, Radius, Space, Type } from '@/constants/flexin-theme';
-import { mockProfile, type ConsistencyDay, type Profile } from '@/data/mock-data';
-import { formatNumber, shortDate, timeAgo } from '@/utils/format';
+import { mockMe, type Challenge, type UserSummary } from '@/data/mock-data';
+import { scoreSets, standingsFor, useChallengeStore } from '@/stores/challenge-store';
+import { useFriendsStore } from '@/stores/friends-store';
+import { formatNumber, formatWeight } from '@/utils/format';
+
+const unit = mockMe.unit;
+
+type Rivalry = { user: UserSummary; wins: number; losses: number };
+
+/** You beat someone in a challenge if you finished with a higher score. */
+function headToHead(finished: Challenge[]): Rivalry[] {
+  const byUser = new Map<string, Rivalry>();
+  for (const c of finished) {
+    const standings = standingsFor(c);
+    const me = standings.find((s) => s.isMe);
+    if (!me) continue;
+    for (const s of standings) {
+      if (s.isMe) continue;
+      const r = byUser.get(s.user.id) ?? { user: s.user, wins: 0, losses: 0 };
+      if (me.score > s.score) r.wins++;
+      else if (s.score > me.score) r.losses++;
+      byUser.set(s.user.id, r);
+    }
+  }
+  return [...byUser.values()].sort((a, b) => b.wins + b.losses - (a.wins + a.losses));
+}
 
 export function ProfileScreen() {
-  const profile = mockProfile;
-  const { user, stats, unit } = profile;
+  const challenges = useChallengeStore((s) => s.challenges);
+  const friendCount = useFriendsStore((s) => s.friends.length);
+
+  const finished = challenges.filter((c) => c.status === 'finished');
+  const wins = finished.filter((c) => standingsFor(c).some((s) => s.isMe && s.rank === 1)).length;
+  const myChallengeSets = finished.map((c) => c.sets.filter((s) => s.userId === mockMe.id));
+  const bests = {
+    volume: Math.max(0, ...myChallengeSets.map((sets) => scoreSets(sets, 'volume'))),
+    reps: Math.max(0, ...myChallengeSets.map((sets) => scoreSets(sets, 'reps'))),
+    heaviest: Math.max(0, ...myChallengeSets.map((sets) => scoreSets(sets, 'heaviest'))),
+  };
+  const rivalries = headToHead(finished);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <IconButton
-            icon="back"
-            label="Back"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          />
+          <Text style={[Type.title, { color: Colors.text }]}>Profile</Text>
           <IconButton icon="settings" label="Settings" onPress={() => router.push('/settings')} />
         </View>
 
         <View style={styles.identity}>
-          <Avatar name={user.name} size={88} />
-          <Text style={[Type.title, { color: Colors.text, marginTop: Space.md }]}>{user.name}</Text>
-          <Text style={[Type.body, { color: Colors.textMuted }]}>@{user.handle}</Text>
+          <Avatar name={mockMe.name} size={88} />
+          <Text style={[Type.title, { color: Colors.text, marginTop: Space.md }]}>{mockMe.name}</Text>
+          <Text style={[Type.body, { color: Colors.textMuted }]}>@{mockMe.handle}</Text>
         </View>
 
         <Card style={styles.statsRow}>
-          <StatCell value={formatNumber(stats.workouts)} label="Workouts" />
+          <StatCell value={`${finished.length}`} label="Challenges" />
           <View style={styles.statDivider} />
-          <StatCell value={`${stats.streakDays}`} label="Day streak" />
+          <StatCell value={`${wins}`} label={wins === 1 ? 'Win' : 'Wins'} />
           <View style={styles.statDivider} />
-          <StatCell value={`${stats.friends}`} label="Friends" />
+          <StatCell value={`${friendCount}`} label={friendCount === 1 ? 'Friend' : 'Friends'} />
         </Card>
 
         <Pressable
@@ -44,65 +75,45 @@ export function ProfileScreen() {
           <Text style={[Type.bodyStrong, { color: Colors.text }]}>Edit profile</Text>
         </Pressable>
 
-        <SectionHeader title="Big three" />
+        <SectionHeader title="Challenge bests" />
         <Card dark>
-          <View style={styles.bigThreeTotal}>
-            <Text style={[Type.display, { color: Colors.onInkCard }]}>{formatNumber(profile.bigThree.total)}</Text>
-            <Text style={[Type.heading, { color: Colors.onInkCardMuted }]}>{unit} total</Text>
+          <View style={styles.bests}>
+            <Best label="Volume" value={bests.volume ? formatNumber(bests.volume) : '—'} unit={unit} />
+            <Best label="Reps" value={bests.reps ? formatNumber(bests.reps) : '—'} unit="reps" />
+            <Best label="Heaviest" value={bests.heaviest ? formatWeight(bests.heaviest) : '—'} unit={unit} />
           </View>
-          <View style={styles.bigThreeLifts}>
-            {profile.bigThree.lifts.map((l) => (
-              <View key={l.lift} style={styles.bigThreeLift}>
-                <Text style={[Type.label, { color: Colors.onInkCardMuted }]}>{l.lift}</Text>
-                <Text style={[Type.stat, { color: l.weight === null ? Colors.onInkCardMuted : Colors.onInkCard }]}>
-                  {l.weight === null ? '—' : formatNumber(l.weight)}
-                </Text>
-              </View>
-            ))}
-          </View>
-          {profile.bigThree.total === 0 ? (
+          {finished.length === 0 ? (
             <Text style={[Type.caption, { color: Colors.onInkCardMuted, marginTop: Space.md }]}>
-              Log a squat, bench and deadlift to build your total.
+              Your best single-challenge numbers show up after your first challenge.
             </Text>
           ) : null}
         </Card>
 
-        <SectionHeader title="Personal records" />
-        <Card style={profile.prs.length > 0 && styles.listCard}>
-          {profile.prs.length === 0 ? (
-            <EmptyState title="No PRs yet" body="Your heaviest lifts will show up here as you log workouts." />
-          ) : null}
-          {profile.prs.map((pr, i) => (
-            <View key={pr.id} style={[styles.listRow, i < profile.prs.length - 1 && styles.divider]}>
-              <View style={styles.prMarker} />
-              <View style={{ flex: 1 }}>
-                <Text style={[Type.bodyStrong, { color: Colors.text }]}>{pr.exercise}</Text>
-                <Text style={[Type.caption, { color: Colors.textMuted }]}>{timeAgo(pr.achievedAt)}</Text>
-              </View>
-              <Text style={[Type.bodyStrong, Type.number, { color: Colors.text }]}>
-                {pr.weight} {unit}
-                <Text style={{ color: Colors.textMuted }}> × {pr.reps}</Text>
-              </Text>
-            </View>
-          ))}
-        </Card>
-
-        <SectionHeader title="Last 12 weeks" />
-        <Card>
-          <ConsistencyGrid days={profile.consistency} />
-          <View style={styles.legend}>
-            <LegendItem color={Colors.line} label="Rest" />
-            <LegendItem color={Colors.text} label="Trained" />
-            <LegendItem color={Colors.pr} label="PR" />
-          </View>
-        </Card>
-
-        <SectionHeader title="Recent workouts" />
-        <Card style={profile.recentWorkouts.length > 0 && styles.listCard}>
-          {profile.recentWorkouts.length > 0 ? (
-            <RecentWorkouts workouts={profile.recentWorkouts} unit={unit} />
+        <SectionHeader title="Head-to-head" />
+        <Card style={rivalries.length ? styles.listCard : undefined}>
+          {rivalries.length === 0 ? (
+            <EmptyState title="No rivalries yet" body="Finish a challenge with a friend to start keeping score." />
           ) : (
-            <EmptyState title="No workouts yet" body="Workouts you finish will be listed here." />
+            rivalries.map((r, i) => (
+              <View key={r.user.id} style={[styles.rivalRow, i < rivalries.length - 1 && styles.divider]}>
+                <Avatar name={r.user.name} size={36} />
+                <Text style={[Type.bodyStrong, { color: Colors.text, flex: 1 }]} numberOfLines={1}>
+                  {r.user.name}
+                </Text>
+                <Text style={[Type.heading, Type.number, { color: Colors.text }]}>
+                  {r.wins}–{r.losses}
+                </Text>
+              </View>
+            ))
+          )}
+        </Card>
+
+        <SectionHeader title="Recent challenges" />
+        <Card style={finished.length ? styles.listCard : undefined}>
+          {finished.length === 0 ? (
+            <EmptyState title="No challenges yet" body="Start one from the Challenges tab next time you hit the gym." />
+          ) : (
+            finished.slice(0, 5).map((c, i, arr) => <ChallengeResultRow key={c.id} challenge={c} last={i === arr.length - 1} />)
           )}
         </Card>
       </ScrollView>
@@ -119,67 +130,18 @@ function StatCell({ value, label }: { value: string; label: string }) {
   );
 }
 
-const DAY_COLOR: Record<ConsistencyDay['status'], string> = {
-  rest: Colors.line,
-  trained: Colors.text,
-  pr: Colors.pr,
-};
-
-function ConsistencyGrid({ days }: { days: ConsistencyDay[] }) {
-  // Columns are weeks (oldest → newest), rows are Mon → Sun.
-  const weeks: ConsistencyDay[][] = [];
-  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
-
+function Best({ label, value, unit: u }: { label: string; value: string; unit: string }) {
   return (
-    <View style={styles.grid}>
-      {weeks.map((week, w) => (
-        <View key={w} style={styles.gridColumn}>
-          {week.map((d) => (
-            <View key={d.date} style={[styles.gridCell, { backgroundColor: DAY_COLOR[d.status] }]} />
-          ))}
-        </View>
-      ))}
+    <View style={styles.best}>
+      <Text style={[Type.label, { color: Colors.onInkCardMuted }]}>{label}</Text>
+      <Text style={[Type.stat, { color: value === '—' ? Colors.onInkCardMuted : Colors.onInkCard }]}>{value}</Text>
+      {value !== '—' ? <Text style={[Type.caption, { color: Colors.onInkCardMuted }]}>{u}</Text> : null}
     </View>
   );
-}
-
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendSwatch, { backgroundColor: color }]} />
-      <Text style={[Type.caption, { color: Colors.textMuted }]}>{label}</Text>
-    </View>
-  );
-}
-
-function RecentWorkouts({ workouts, unit }: { workouts: Profile['recentWorkouts']; unit: string }) {
-  return workouts.map((w, i) => (
-    <Pressable
-      key={w.id}
-      onPress={() => router.push({ pathname: '/workout/[id]', params: { id: w.id } })}
-      style={({ pressed }) => [styles.listRow, i < workouts.length - 1 && styles.divider, pressed && { opacity: 0.6 }]}>
-      <View style={{ flex: 1 }}>
-        <View style={styles.workoutTitleRow}>
-          <Text style={[Type.bodyStrong, { color: Colors.text }]}>{w.title}</Text>
-          {w.prCount > 0 ? <View style={styles.prMarker} /> : null}
-        </View>
-        <Text style={[Type.caption, { color: Colors.textMuted }]}>
-          {shortDate(w.completedAt)} · {w.durationMin} min
-        </Text>
-      </View>
-      <Text style={[Type.caption, Type.number, { color: Colors.text }]}>
-        {formatNumber(w.totalVolume)} {unit}
-      </Text>
-      <Icon name="chevron" size={14} color={Colors.textFaint} />
-    </Pressable>
-  ));
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  safe: { flex: 1, backgroundColor: Colors.background },
   content: {
     padding: Space.lg,
     paddingBottom: Space.xxl * 2,
@@ -190,10 +152,11 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   identity: {
     alignItems: 'center',
-    marginTop: Space.sm,
+    marginTop: Space.md,
     marginBottom: Space.xl,
   },
   statsRow: {
@@ -201,10 +164,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Space.md,
   },
-  statCell: {
-    flex: 1,
-    alignItems: 'center',
-  },
+  statCell: { flex: 1, alignItems: 'center' },
   statDivider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
@@ -219,26 +179,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bigThreeTotal: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: Space.sm,
-  },
-  bigThreeLifts: {
-    flexDirection: 'row',
-    marginTop: Space.md,
-    paddingTop: Space.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.onInkCardLine,
-  },
-  bigThreeLift: {
-    flex: 1,
-    gap: 2,
-  },
-  listCard: {
-    paddingVertical: Space.xs,
-  },
-  listRow: {
+  bests: { flexDirection: 'row' },
+  best: { flex: 1, gap: 2 },
+  listCard: { paddingVertical: Space.xs },
+  rivalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.md,
@@ -247,43 +191,5 @@ const styles = StyleSheet.create({
   divider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.line,
-  },
-  prMarker: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.pr,
-  },
-  workoutTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.sm,
-  },
-  grid: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  gridColumn: {
-    flex: 1,
-    gap: 4,
-  },
-  gridCell: {
-    aspectRatio: 1,
-    borderRadius: 4,
-  },
-  legend: {
-    flexDirection: 'row',
-    gap: Space.lg,
-    marginTop: Space.md,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendSwatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 3,
   },
 });

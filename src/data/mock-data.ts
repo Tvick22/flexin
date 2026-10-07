@@ -1,7 +1,7 @@
 /**
  * Placeholder data shaped like the expected API responses.
  * The types here are the contract the FastAPI backend should satisfy.
- * Timestamps are ISO 8601 strings; weights are in `unit`.
+ * Timestamps are ISO 8601 strings; weights are in the user's `unit`.
  */
 
 export type WeightUnit = 'lb' | 'kg';
@@ -34,99 +34,44 @@ export type FriendRequest = {
   createdAt: string;
 };
 
-// GET /challenges/current  (null when there's no active challenge)
-export type ChallengeStanding = {
-  rank: number;
-  user: UserSummary;
-  volume: number;
-  workouts: number;
-};
+// --- Challenges --------------------------------------------------------------
+// POST /challenges creates a lobby; people join with the code; the host starts
+// and ends it. A WebSocket per challenge streams joins, start/end, and sets.
 
-export type WeeklyChallenge = {
+export type ChallengeMetric = 'volume' | 'reps' | 'heaviest';
+
+/** One logged set, by any participant. Over the socket: `set.logged`. */
+export type ChallengeSet = {
   id: string;
-  weekStart: string;
-  endsAt: string;
-  metric: 'volume';
-  unit: WeightUnit;
-  standings: ChallengeStanding[];
-};
-
-// GET /workouts?limit=…  and  GET /workouts/{id}
-export type WorkoutSummary = {
-  id: string;
-  title: string;
-  completedAt: string;
-  durationMin: number;
-  totalVolume: number;
-  setCount: number;
-  exerciseCount: number;
-  prCount: number;
-};
-
-export type WorkoutExerciseSummary = {
-  name: string;
-  sets: number;
-  topSet: { weight: number; reps: number };
-  isPr: boolean;
-};
-
-export type LastWorkout = WorkoutSummary & {
-  exercises: WorkoutExerciseSummary[];
-};
-
-// GET /feed
-export type FeedItem = {
-  id: string;
-  type: 'workout_completed' | 'pr' | 'challenge_overtake';
-  user: UserSummary;
-  createdAt: string;
-  headline: string;
-  detail: string | null;
-  flexCount: number;
-  flexedByMe: boolean;
-};
-
-// GET /users/{id}/profile
-export type PersonalRecord = {
-  id: string;
-  exercise: string;
+  userId: string;
+  exerciseId: string;
+  exerciseName: string;
   weight: number;
   reps: number;
-  achievedAt: string;
+  loggedAt: string;
 };
 
-export type ConsistencyDay = {
-  date: string; // YYYY-MM-DD
-  status: 'rest' | 'trained' | 'pr';
-};
-
-export type Profile = {
-  user: UserSummary;
-  unit: WeightUnit;
-  stats: { workouts: number; streakDays: number; friends: number };
-  bigThree: {
-    total: number;
-    lifts: { lift: 'Squat' | 'Bench' | 'Deadlift'; weight: number | null }[];
-  };
-  prs: PersonalRecord[];
-  consistency: ConsistencyDay[]; // 84 days (12 weeks), oldest first, starting on a Monday
-  recentWorkouts: WorkoutSummary[];
+export type Challenge = {
+  id: string;
+  /** 6 chars from the friend-code alphabet; anyone with it (or the link) can join. */
+  code: string;
+  name: string;
+  metric: ChallengeMetric;
+  /** Only the host can start and end the challenge. */
+  hostId: string;
+  /** Joined, including the host. Over the socket: `participant.joined`. */
+  participants: UserSummary[];
+  /** Friends the host invited who haven't joined yet. */
+  invited: UserSummary[];
+  createdAt: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  status: 'lobby' | 'live' | 'finished';
+  sets: ChallengeSet[];
 };
 
 // --- Mock values -------------------------------------------------------------
-// A brand-new user: signed up, no friends, no workouts yet.
-
-const DAY = 24 * 60 * 60 * 1000;
-const now = Date.now();
-
-function startOfWeek(d: Date): Date {
-  const out = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const dow = (out.getDay() + 6) % 7; // Monday = 0
-  out.setDate(out.getDate() - dow);
-  return out;
-}
-
-const weekStart = startOfWeek(new Date(now));
+// A brand-new user: signed up, no friends, no challenges yet.
 
 const me: UserSummary = { id: 'u_me', name: 'Trevor Vick', handle: 'tvick', avatarUrl: null };
 
@@ -136,45 +81,30 @@ export const mockFriends: Friend[] = [];
 
 export const mockFriendRequests: FriendRequest[] = [];
 
+export const mockChallenges: Challenge[] = [];
+
 /**
- * Stand-in for GET /users/by-friend-code/{code} so the Add flow can be tried
- * before the backend exists. Enter one of these keys as a friend code.
+ * Stand-in for looking up a join code on the server: challenges hosted by
+ * other people. Enter one of these keys as a join code.
+ */
+export const mockChallengeCodeDirectory: Record<
+  string,
+  Pick<Challenge, 'name' | 'metric'> & { host: UserSummary; others: UserSummary[] }
+> = {
+  MAYA42: {
+    name: "Maya's leg day",
+    metric: 'volume',
+    host: { id: 'u_maya', name: 'Maya Chen', handle: 'mayalifts', avatarUrl: null },
+    others: [{ id: 'u_sam', name: 'Sam Okafor', handle: 'samo', avatarUrl: null }],
+  },
+};
+
+/**
+ * Stand-in for looking up a friend code on the server, so the Add flow can be
+ * tried before the backend exists. Enter one of these keys as a friend code.
  */
 export const mockFriendCodeDirectory: Record<string, UserSummary> = {
   MAYA2CHN: { id: 'u_maya', name: 'Maya Chen', handle: 'mayalifts', avatarUrl: null },
   JRDN4RYS: { id: 'u_jordan', name: 'Jordan Reyes', handle: 'jreyes', avatarUrl: null },
   SAM6KFR9: { id: 'u_sam', name: 'Sam Okafor', handle: 'samo', avatarUrl: null },
-};
-
-// null = the user isn't in an active challenge (GET /challenges/current → 204 or `null`).
-export const mockWeeklyChallenge: WeeklyChallenge | null = null;
-
-export const mockLastWorkout: LastWorkout | null = null;
-
-export const mockFeed: FeedItem[] = [];
-
-function emptyConsistency(): ConsistencyDay[] {
-  const start = new Date(weekStart.getTime() - 11 * 7 * DAY);
-  return Array.from({ length: 84 }, (_, i) => {
-    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return { date, status: 'rest' as const };
-  });
-}
-
-export const mockProfile: Profile = {
-  user: me,
-  unit: 'lb',
-  stats: { workouts: 0, streakDays: 0, friends: 0 },
-  bigThree: {
-    total: 0,
-    lifts: [
-      { lift: 'Squat', weight: null },
-      { lift: 'Bench', weight: null },
-      { lift: 'Deadlift', weight: null },
-    ],
-  },
-  prs: [],
-  consistency: emptyConsistency(),
-  recentWorkouts: [],
 };
