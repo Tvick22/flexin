@@ -1,12 +1,13 @@
 """ORM models. Import each model module here so Alembic autogenerate can find it.
 
 Planned next (see src/data/mock-data.ts in the app for the shapes):
-sessions (refresh tokens), friendships, friend_requests, challenges,
+friendships, friend_requests, challenges,
 challenge_participants, challenge_sets.
 """
 
 from app.db import Base
 from app.models.auth_identity import AuthIdentity
+from app.models.auth_session import AuthSession
 from app.models.user import User
 
-__all__ = ["AuthIdentity", "Base", "User"]
+__all__ = ["AuthIdentity", "AuthSession", "Base", "User"]

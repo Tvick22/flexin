@@ -54,5 +54,10 @@ class User(Base):
         CheckConstraint("length(trim(name)) > 0", name="name_not_blank"),
     )
 
+    @property
+    def onboarded(self) -> bool:
+        """Picked a handle in onboarding (name is collected on the same screen)."""
+        return self.handle is not None
+
     def __repr__(self) -> str:
         return f"<User {self.handle or '(not onboarded)'} {self.id}>"
