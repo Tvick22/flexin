@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Avatar, Card, Icon, IconButton, SectionHeader } from '@/components/flexin/ui';
+import { Avatar, Card, EmptyState, Icon, IconButton, SectionHeader } from '@/components/flexin/ui';
 import { Colors, Radius, Space, Type } from '@/constants/flexin-theme';
 import { mockProfile, type ConsistencyDay, type Profile } from '@/data/mock-data';
 import { formatNumber, shortDate, timeAgo } from '@/utils/format';
@@ -54,14 +54,24 @@ export function ProfileScreen() {
             {profile.bigThree.lifts.map((l) => (
               <View key={l.lift} style={styles.bigThreeLift}>
                 <Text style={[Type.label, { color: Colors.onInkCardMuted }]}>{l.lift}</Text>
-                <Text style={[Type.stat, { color: Colors.onInkCard }]}>{formatNumber(l.weight)}</Text>
+                <Text style={[Type.stat, { color: l.weight === null ? Colors.onInkCardMuted : Colors.onInkCard }]}>
+                  {l.weight === null ? '—' : formatNumber(l.weight)}
+                </Text>
               </View>
             ))}
           </View>
+          {profile.bigThree.total === 0 ? (
+            <Text style={[Type.caption, { color: Colors.onInkCardMuted, marginTop: Space.md }]}>
+              Log a squat, bench and deadlift to build your total.
+            </Text>
+          ) : null}
         </Card>
 
         <SectionHeader title="Personal records" />
-        <Card style={styles.listCard}>
+        <Card style={profile.prs.length > 0 && styles.listCard}>
+          {profile.prs.length === 0 ? (
+            <EmptyState title="No PRs yet" body="Your heaviest lifts will show up here as you log workouts." />
+          ) : null}
           {profile.prs.map((pr, i) => (
             <View key={pr.id} style={[styles.listRow, i < profile.prs.length - 1 && styles.divider]}>
               <View style={styles.prMarker} />
@@ -88,8 +98,12 @@ export function ProfileScreen() {
         </Card>
 
         <SectionHeader title="Recent workouts" />
-        <Card style={styles.listCard}>
-          <RecentWorkouts workouts={profile.recentWorkouts} unit={unit} />
+        <Card style={profile.recentWorkouts.length > 0 && styles.listCard}>
+          {profile.recentWorkouts.length > 0 ? (
+            <RecentWorkouts workouts={profile.recentWorkouts} unit={unit} />
+          ) : (
+            <EmptyState title="No workouts yet" body="Workouts you finish will be listed here." />
+          )}
         </Card>
       </ScrollView>
     </SafeAreaView>
