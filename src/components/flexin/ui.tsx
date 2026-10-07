@@ -1,6 +1,6 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type ColorValue, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Colors, Palette, Radius, Space, Type } from '@/constants/flexin-theme';
 
@@ -15,11 +15,14 @@ const ICONS = {
   trophy: { ios: 'trophy.fill', android: 'emoji_events', web: 'emoji_events' },
   flame: { ios: 'flame.fill', android: 'local_fire_department', web: 'local_fire_department' },
   plus: { ios: 'plus', android: 'add', web: 'add' },
+  home: { ios: 'house.fill', android: 'home', web: 'home' },
+  friends: { ios: 'person.2.fill', android: 'group', web: 'group' },
+  share: { ios: 'square.and.arrow.up', android: 'share', web: 'share' },
 } satisfies Record<string, SymbolViewProps['name']>;
 
 export type IconName = keyof typeof ICONS;
 
-export function Icon({ name, size = 18, color = Colors.text }: { name: IconName; size?: number; color?: string }) {
+export function Icon({ name, size = 18, color = Colors.text }: { name: IconName; size?: number; color?: ColorValue }) {
   return <SymbolView name={ICONS[name]} size={size} tintColor={color} />;
 }
 

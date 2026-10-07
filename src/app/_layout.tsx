@@ -12,7 +12,7 @@ export default function RootLayout() {
     <>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
-        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="workout/index" />
         <Stack.Screen name="workout/[id]" />

@@ -14,7 +14,25 @@ export type UserSummary = {
 };
 
 // GET /me
-export type Me = UserSummary & { unit: WeightUnit };
+export type Me = UserSummary & {
+  unit: WeightUnit;
+  /** 8 chars from FRIEND_CODE_ALPHABET (utils/friend-code), stored without the dash. */
+  friendCode: string;
+};
+
+// GET /friends
+export type Friend = {
+  user: UserSummary;
+  since: string;
+};
+
+// GET /friends/requests
+export type FriendRequest = {
+  id: string;
+  direction: 'incoming' | 'outgoing';
+  user: UserSummary;
+  createdAt: string;
+};
 
 // GET /challenges/current  (null when there's no active challenge)
 export type ChallengeStanding = {
@@ -112,7 +130,21 @@ const weekStart = startOfWeek(new Date(now));
 
 const me: UserSummary = { id: 'u_me', name: 'Trevor Vick', handle: 'tvick', avatarUrl: null };
 
-export const mockMe: Me = { ...me, unit: 'lb' };
+export const mockMe: Me = { ...me, unit: 'lb', friendCode: '7K2Q9MXP' };
+
+export const mockFriends: Friend[] = [];
+
+export const mockFriendRequests: FriendRequest[] = [];
+
+/**
+ * Stand-in for GET /users/by-friend-code/{code} so the Add flow can be tried
+ * before the backend exists. Enter one of these keys as a friend code.
+ */
+export const mockFriendCodeDirectory: Record<string, UserSummary> = {
+  MAYA2CHN: { id: 'u_maya', name: 'Maya Chen', handle: 'mayalifts', avatarUrl: null },
+  JRDN4RYS: { id: 'u_jordan', name: 'Jordan Reyes', handle: 'jreyes', avatarUrl: null },
+  SAM6KFR9: { id: 'u_sam', name: 'Sam Okafor', handle: 'samo', avatarUrl: null },
+};
 
 // null = the user isn't in an active challenge (GET /challenges/current → 204 or `null`).
 export const mockWeeklyChallenge: WeeklyChallenge | null = null;
