@@ -4,11 +4,8 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.22",
-    "@react-native-google-signin/google-signin": "^16.1.5",
     "expo": "~57.0.27",
-    "expo-apple-authentication": "~57.0.2",
     "expo-constants": "~57.0.21",
-    "expo-crypto": "~57.0.3",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.4",

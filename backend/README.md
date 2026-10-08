@@ -30,32 +30,29 @@ Then open http://localhost:8000/docs for the interactive API docs.
 To reach the API from a phone on the same Wi-Fi, use `npm run api:lan` (binds to
 `0.0.0.0`) and point the app at your Mac's IP (see "Connecting the app").
 
-## Auth (Sign in with Apple / Google)
-
-The app signs in with Apple or Google natively, then sends the provider's ID token here.
-The server verifies it against the provider's published keys and returns its own tokens.
+## Auth (email + password)
 
 | Endpoint | |
 | --- | --- |
-| `POST /auth/apple` | `{ identityToken, nonce?, givenName?, familyName? }` → tokens + user |
-| `POST /auth/google` | `{ idToken, nonce? }` → tokens + user |
+| `POST /auth/signup` | `{ email, password }` → 201, tokens + user (`isNewUser: true`); 409 if the email exists |
+| `POST /auth/login` | `{ email, password }` → tokens + user; 401 "Incorrect email or password." |
 | `POST /auth/refresh` | `{ refreshToken }` → new pair (the old refresh token is spent) |
 | `POST /auth/logout` | `{ refreshToken }` → 204 |
 | `GET` / `PATCH /me` | Profile; onboarding sets `name` + `handle` (`onboarded` turns true) |
 | `GET /handles/{handle}` | Availability check while picking a handle |
 
-Send the access token as `Authorization: Bearer <accessToken>`. Access tokens last
-15 minutes; refresh before `expiresIn` runs out. Reusing a spent refresh token signs
-the user out everywhere (it means the token was copied).
+- Passwords: 8–128 characters, no other composition rules (NIST 800-63B). Stored as
+  Argon2id hashes; old hashes are upgraded on the next successful login.
+- Emails are unique ignoring case. Login gives the same error (and takes the same time)
+  for an unknown email and a wrong password, so it can't be used to find accounts.
+- Send the access token as `Authorization: Bearer <accessToken>`. Access tokens last
+  15 minutes; refresh before `expiresIn` runs out. Reusing a spent refresh token signs
+  the user out everywhere (it means the token was copied).
+- Not built yet: password reset (needs an email service), change password, and rate
+  limiting on login.
 
-Config (`backend/.env`): `APPLE_CLIENT_IDS` (iOS bundle id), `GOOGLE_CLIENT_IDS`
-(OAuth client ids; must include the **web** client ID, which is the audience of the
-ID tokens the app gets), `JWT_SECRET`.
-
-`POST /auth/dev { email }` signs in as a test account with no provider. It exists only
-when `ENVIRONMENT=development`, so the app can be developed on web/simulators before
-Apple/Google credentials are set up. With `ENVIRONMENT=production` the server refuses to
-start with the development `JWT_SECRET`.
+Config (`backend/.env`): `JWT_SECRET`. With `ENVIRONMENT=production` the server refuses
+to start with the development `JWT_SECRET`.
 
 ## Tests and linting
 
@@ -92,13 +89,13 @@ app/
   main.py        FastAPI app, CORS, routers
   config.py      settings from env vars / backend/.env
   db.py          async SQLAlchemy engine, session dependency, Base
-  models/        ORM models: users, auth_identities, sessions
+  models/        ORM models: users, sessions
   routers/       HTTP endpoints: health, auth, me
   services/      business logic (sign-in, session rotation)
   schemas.py     request/response models (camelCase JSON)
-  deps.py        CurrentUser (bearer auth) and the ID token verifier
-  id_tokens.py   Apple/Google ID token verification
-  security.py    our access tokens and refresh token hashing
+  deps.py        CurrentUser (bearer auth)
+  passwords.py   Argon2id password hashing
+  security.py    access tokens and refresh token hashing
   codes.py       friend code alphabet/generator (matches the app)
 migrations/      Alembic (async)
 tests/

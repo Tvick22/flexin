@@ -6,8 +6,7 @@ challenge_participants, challenge_sets.
 """
 
 from app.db import Base
-from app.models.auth_identity import AuthIdentity
 from app.models.auth_session import AuthSession
 from app.models.user import User
 
-__all__ = ["AuthIdentity", "AuthSession", "Base", "User"]
+__all__ = ["AuthSession", "Base", "User"]

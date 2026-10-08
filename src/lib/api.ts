@@ -8,7 +8,7 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:800
 /** GET /me (backend MeRead). */
 export type ApiMe = {
   id: string;
-  email: string | null;
+  email: string;
   name: string | null;
   handle: string | null;
   avatarUrl: string | null;

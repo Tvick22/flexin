@@ -15,6 +15,7 @@ pytestmark = pytest.mark.anyio
 def make_user(**overrides: object) -> User:
     fields: dict[str, object] = {
         "email": "trev@example.com",
+        "password_hash": "not-a-real-hash",
         "name": "Trevor Vick",
         "handle": "tvick",
     }
@@ -64,14 +65,24 @@ async def test_create_user_fills_defaults(session: AsyncSession) -> None:
 
 
 async def test_new_sign_up_needs_no_profile_yet(session: AsyncSession) -> None:
-    """Apple may withhold name/email; handle comes from onboarding. Several such users can exist."""
-    session.add_all([User(), User()])
+    """Name and handle come from onboarding, after sign-up."""
+    session.add_all(
+        [
+            User(email="a@example.com", password_hash="x"),
+            User(email="b@example.com", password_hash="x"),
+        ]
+    )
     await session.commit()
 
     users = (await session.scalars(select(User))).all()
     assert len(users) == 2
-    assert all(u.email is None and u.name is None and u.handle is None for u in users)
+    assert all(u.name is None and u.handle is None and not u.onboarded for u in users)
     assert users[0].friend_code != users[1].friend_code
+
+
+@pytest.mark.parametrize("missing", ["email", "password_hash"])
+async def test_email_and_password_are_required(session: AsyncSession, missing: str) -> None:
+    await expect_rejected(session, make_user(**{missing: None}))
 
 
 async def test_email_is_unique_ignoring_case(session: AsyncSession) -> None:

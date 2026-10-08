@@ -4,10 +4,11 @@ import re
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 from app.models.user import HANDLE_PATTERN
+from app.passwords import MAX_LENGTH, MIN_LENGTH
 
 WeightUnit = Literal["lb", "kg"]
 
@@ -23,7 +24,7 @@ class MeRead(CamelModel):
     """GET /me. Matches the app's `Me` type, plus email and onboarding state."""
 
     id: uuid.UUID
-    email: str | None
+    email: str
     name: str | None
     handle: str | None
     avatar_url: str | None
@@ -73,18 +74,16 @@ class HandleAvailability(CamelModel):
 # --- Auth --------------------------------------------------------------------
 
 
-class AppleSignIn(CamelModel):
-    identity_token: str
-    # Raw nonce; the app passes sha256(nonce) to Apple. Optional but recommended.
-    nonce: str | None = None
-    # Apple only reveals the name on the first sign-in, and only to the app.
-    given_name: str | None = Field(default=None, max_length=50)
-    family_name: str | None = Field(default=None, max_length=50)
+class SignUp(CamelModel):
+    email: EmailStr
+    # Length is the only rule (NIST 800-63B): no forced symbols or digits.
+    password: str = Field(min_length=MIN_LENGTH, max_length=MAX_LENGTH)
 
 
-class GoogleSignIn(CamelModel):
-    id_token: str
-    nonce: str | None = None
+class LogIn(CamelModel):
+    # Not validated as an email: a malformed one just fails like a wrong password.
+    email: str = Field(max_length=320)
+    password: str = Field(max_length=MAX_LENGTH)
 
 
 class RefreshRequest(CamelModel):
@@ -98,5 +97,5 @@ class TokenResponse(CamelModel):
     # Seconds until the access token expires; refresh before then.
     expires_in: int
     user: MeRead
-    # True when this sign-in created the account: the app should show onboarding.
+    # True when this request created the account: the app should show onboarding.
     is_new_user: bool = False

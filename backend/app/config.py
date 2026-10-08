@@ -25,11 +25,6 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 60
 
-    # Accepted `aud` values for provider ID tokens (comma-separated).
-    # Apple: the iOS bundle identifier(s). Google: the OAuth client ID(s) the app uses.
-    apple_client_ids: str = "com.tvick.flexin"
-    google_client_ids: str = ""
-
     @model_validator(mode="after")
     def _no_dev_secret_in_production(self) -> "Settings":
         if self.environment == "production" and self.jwt_secret == DEV_JWT_SECRET:
@@ -39,14 +34,6 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return _split(self.cors_origins)
-
-    @property
-    def apple_audiences(self) -> list[str]:
-        return _split(self.apple_client_ids)
-
-    @property
-    def google_audiences(self) -> list[str]:
-        return _split(self.google_client_ids)
 
 
 @lru_cache

@@ -1,209 +1,272 @@
-import * as AppleAuthentication from 'expo-apple-authentication';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Radius, Space, Type } from '@/constants/flexin-theme';
 import { API_URL, ApiError, NetworkError } from '@/lib/api';
-import {
-  isAppleSignInAvailable,
-  isGoogleSignInConfigured,
-  signInWithApple,
-  signInWithGoogle,
-} from '@/lib/social-sign-in';
 import { authActions, useAuthStore } from '@/stores/auth-store';
 
-type Busy = 'apple' | 'google' | 'dev' | 'retry' | null;
+type Mode = 'signIn' | 'signUp';
 
-function describe(e: unknown): string {
-  if (e instanceof NetworkError) return `Can't reach the server (${API_URL}). Is it running?`;
-  if (e instanceof ApiError) return e.message;
-  return e instanceof Error ? e.message : 'Something went wrong. Try again.';
+const MIN_PASSWORD = 8;
+
+function looksLikeEmail(email: string) {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
 }
 
+/** Email + password: sign in, or create an account (onboarding follows). */
 export function SignInScreen() {
   const restoreError = useAuthStore((s) => s.restoreError);
-  const [appleAvailable, setAppleAvailable] = useState(false);
-  const [busy, setBusy] = useState<Busy>(null);
+  const [mode, setMode] = useState<Mode>('signIn');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [devEmail, setDevEmail] = useState('dev@flexin.local');
+  // Sign-up hit an existing account: offer to switch to sign-in with the email kept.
+  const [emailTaken, setEmailTaken] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    isAppleSignInAvailable().then(setAppleAvailable, () => setAppleAvailable(false));
-  }, []);
+  const signingUp = mode === 'signUp';
+  const valid = looksLikeEmail(email) && (signingUp ? password.length >= MIN_PASSWORD : password.length > 0);
 
-  async function run(kind: Exclude<Busy, null>, action: () => Promise<void>) {
-    setBusy(kind);
+  function switchMode(next: Mode) {
+    setMode(next);
     setError(null);
+    setEmailTaken(false);
+  }
+
+  async function submit() {
+    if (!valid || busy) return;
+    setBusy(true);
+    setError(null);
+    setEmailTaken(false);
     try {
-      await action();
-      // On success the auth store flips to signed-in and the router leaves this screen.
+      if (signingUp) await authActions.signUp(email, password);
+      else await authActions.logIn(email, password);
+      // Signed in: the router moves on to onboarding (new account) or the app.
     } catch (e) {
-      setError(describe(e));
+      if (e instanceof NetworkError) setError(`Can't reach the server (${API_URL}). Is it running?`);
+      else if (e instanceof ApiError) {
+        setError(e.message);
+        setEmailTaken(signingUp && e.status === 409);
+      } else setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
-  const apple = () =>
-    run('apple', async () => {
-      const credential = await signInWithApple();
-      if (credential) await authActions.signInWithApple(credential);
-    });
-
-  const google = () =>
-    run('google', async () => {
-      const credential = await signInWithGoogle();
-      if (credential) await authActions.signInWithGoogle(credential);
-    });
-
-  const dev = () => run('dev', () => authActions.devSignIn(devEmail.trim()));
-  const retry = () => run('retry', () => authActions.restore());
+  async function retryRestore() {
+    setBusy(true);
+    try {
+      await authActions.restore();
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const message = error ?? (restoreError ? `Couldn't restore your session: ${restoreError}` : null);
-  const noProviders = !appleAvailable && !isGoogleSignInConfigured;
+  const remaining = MIN_PASSWORD - password.length;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.inner}>
-        <View style={styles.hero}>
-          <Text style={styles.wordmark}>Flexin&apos;</Text>
-          <Text style={[Type.heading, styles.tagline]}>Live gym challenges with your friends.</Text>
-          <Text style={[Type.body, { color: Colors.textMuted, textAlign: 'center' }]}>
-            Start a challenge, log your sets between rounds, and see who moved the most.
-          </Text>
-        </View>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+          <View style={styles.hero}>
+            <Text style={styles.wordmark}>Flexin&apos;</Text>
+            <Text style={[Type.heading, styles.tagline]}>Live gym challenges with your friends.</Text>
+          </View>
 
-        <View style={styles.actions}>
+          <View style={styles.segments} accessibilityRole="tablist">
+            {(['signIn', 'signUp'] as const).map((m) => (
+              <Pressable
+                key={m}
+                onPress={() => switchMode(m)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: mode === m }}
+                style={[styles.segment, mode === m && styles.segmentOn]}>
+                <Text style={[Type.bodyStrong, { color: mode === m ? Colors.text : Colors.textMuted }]}>
+                  {m === 'signIn' ? 'Sign in' : 'Create account'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={[Type.label, styles.label]}>Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={(t) => {
+              setEmail(t);
+              setError(null);
+            }}
+            placeholder="you@example.com"
+            placeholderTextColor={Colors.textFaint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            accessibilityLabel="Email"
+            style={styles.input}
+          />
+
+          <Text style={[Type.label, styles.label]}>Password</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              ref={passwordRef}
+              value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                setError(null);
+              }}
+              placeholder={signingUp ? `At least ${MIN_PASSWORD} characters` : 'Your password'}
+              placeholderTextColor={Colors.textFaint}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete={signingUp ? 'new-password' : 'current-password'}
+              textContentType={signingUp ? 'newPassword' : 'password'}
+              returnKeyType="go"
+              onSubmitEditing={submit}
+              maxLength={128}
+              accessibilityLabel="Password"
+              style={[styles.input, styles.passwordInput]}
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              hitSlop={8}
+              style={styles.showToggle}>
+              <Text style={[Type.caption, { color: Colors.text, fontWeight: '800' }]}>
+                {showPassword ? 'Hide' : 'Show'}
+              </Text>
+            </Pressable>
+          </View>
+          {signingUp ? (
+            <Text style={[Type.caption, styles.hint]}>
+              {password.length > 0 && remaining > 0
+                ? `${remaining} more character${remaining === 1 ? '' : 's'}`
+                : `At least ${MIN_PASSWORD} characters. A short phrase works well.`}
+            </Text>
+          ) : null}
+
           {message ? (
             <View style={styles.error} accessibilityRole="alert">
               <Text style={[Type.caption, { color: Colors.text, fontWeight: '800' }]}>{message}</Text>
-              {restoreError && !error ? (
-                <Pressable onPress={retry} accessibilityRole="button" hitSlop={8}>
-                  <Text style={[Type.caption, styles.link]}>{busy === 'retry' ? 'Retrying…' : 'Retry'}</Text>
+              {emailTaken ? (
+                <Pressable onPress={() => switchMode('signIn')} accessibilityRole="button" hitSlop={8}>
+                  <Text style={[Type.caption, styles.link]}>Sign in with this email</Text>
+                </Pressable>
+              ) : restoreError && !error ? (
+                <Pressable onPress={retryRestore} accessibilityRole="button" hitSlop={8}>
+                  <Text style={[Type.caption, styles.link]}>{busy ? 'Retrying…' : 'Retry'}</Text>
                 </Pressable>
               ) : null}
             </View>
           ) : null}
 
-          {appleAvailable ? (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={Radius.md}
-              style={[styles.providerButton, busy !== null && styles.disabled]}
-              onPress={busy === null ? apple : () => {}}
-            />
-          ) : null}
+          <Pressable
+            onPress={submit}
+            disabled={!valid || busy}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !valid || busy }}
+            style={({ pressed }) => [styles.submit, (!valid || busy) && styles.disabled, pressed && styles.pressed]}>
+            {busy ? (
+              <ActivityIndicator color={Colors.onPrimary} />
+            ) : (
+              <Text style={[Type.heading, { color: Colors.onPrimary }]}>
+                {signingUp ? 'Create account' : 'Sign in'}
+              </Text>
+            )}
+          </Pressable>
 
-          {isGoogleSignInConfigured ? (
-            <Pressable
-              onPress={google}
-              disabled={busy !== null}
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.providerButton, styles.googleButton, pressed && styles.pressed]}>
-              {busy === 'google' ? (
-                <ActivityIndicator color={Colors.text} />
-              ) : (
-                <Text style={[Type.heading, { color: Colors.text }]}>Continue with Google</Text>
-              )}
-            </Pressable>
-          ) : null}
-
-          {noProviders && !__DEV__ ? (
-            <Text style={[Type.caption, { color: Colors.textMuted, textAlign: 'center' }]}>
-              Sign-in isn&apos;t available on this device.
+          <Pressable
+            onPress={() => switchMode(signingUp ? 'signIn' : 'signUp')}
+            accessibilityRole="button"
+            style={styles.switch}
+            hitSlop={8}>
+            <Text style={[Type.caption, { color: Colors.textMuted }]}>
+              {signingUp ? 'Already have an account? ' : 'New to Flexin’? '}
+              <Text style={{ color: Colors.text, fontWeight: '800' }}>
+                {signingUp ? 'Sign in' : 'Create an account'}
+              </Text>
             </Text>
-          ) : null}
-
-          {__DEV__ ? (
-            <View style={styles.dev}>
-              <Text style={[Type.label, { color: Colors.textMuted }]}>Development only</Text>
-              <TextInput
-                value={devEmail}
-                onChangeText={setDevEmail}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                accessibilityLabel="Test account email"
-                style={styles.devInput}
-              />
-              <Pressable
-                onPress={dev}
-                disabled={busy !== null || !devEmail.includes('@')}
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.devButton, pressed && styles.pressed]}>
-                {busy === 'dev' ? (
-                  <ActivityIndicator color={Colors.text} />
-                ) : (
-                  <Text style={[Type.bodyStrong, { color: Colors.text }]}>Sign in as test account</Text>
-                )}
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
-      </View>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+  flex: { flex: 1 },
   inner: {
-    flex: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
     width: '100%',
     maxWidth: 480,
     alignSelf: 'center',
     padding: Space.xl,
-    justifyContent: 'space-between',
   },
-  hero: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Space.md },
+  hero: { alignItems: 'center', gap: Space.sm, marginBottom: Space.xxl },
   wordmark: { fontSize: 56, fontWeight: '900', letterSpacing: -1.5, color: Colors.text },
   tagline: { color: Colors.text, textAlign: 'center' },
-  actions: { gap: Space.md, paddingBottom: Space.lg },
-  providerButton: { height: 54, width: '100%' },
-  googleButton: {
+  segments: {
+    flexDirection: 'row',
+    padding: 4,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.text,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: Colors.wash,
+    marginBottom: Space.sm,
   },
+  segment: { flex: 1, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm },
+  segmentOn: { backgroundColor: Colors.surface },
+  label: { color: Colors.textMuted, marginTop: Space.lg, marginBottom: Space.sm },
+  input: {
+    height: 52,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Space.lg,
+    color: Colors.text,
+    fontSize: 17,
+    fontWeight: '600',
+    outlineWidth: 0,
+    outlineStyle: 'solid',
+  },
+  passwordRow: { flexDirection: 'row', alignItems: 'center' },
+  passwordInput: { flex: 1, paddingRight: 64 },
+  showToggle: { position: 'absolute', right: Space.lg },
+  hint: { color: Colors.textMuted, marginTop: Space.sm },
   error: {
+    marginTop: Space.lg,
     padding: Space.md,
     borderRadius: Radius.md,
     backgroundColor: Colors.surface,
     gap: Space.xs,
   },
   link: { color: Colors.text, fontWeight: '800', textDecorationLine: 'underline' },
-  dev: {
-    gap: Space.sm,
-    padding: Space.md,
+  submit: {
+    marginTop: Space.xl,
+    height: 56,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: Colors.textFaint,
-    backgroundColor: Colors.wash,
-  },
-  devInput: {
-    height: 44,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Space.md,
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-    outlineWidth: 0,
-    outlineStyle: 'solid',
-  },
-  devButton: {
-    height: 44,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  disabled: { opacity: 0.5 },
+  switch: { alignSelf: 'center', marginTop: Space.lg, padding: Space.sm },
+  disabled: { opacity: 0.4 },
   pressed: { opacity: 0.7 },
 });

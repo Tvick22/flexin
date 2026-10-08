@@ -1,14 +1,12 @@
-"""Shared request dependencies: the signed-in user and the ID token verifier."""
+"""Shared request dependencies: the signed-in user."""
 
 from datetime import UTC, datetime
-from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.db import SessionDep
-from app.id_tokens import IdTokenVerifier, build_verifier
 from app.models import AuthSession, User
 from app.security import InvalidAccessToken, decode_access_token
 
@@ -51,11 +49,3 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
-
-
-@lru_cache
-def get_id_token_verifier() -> IdTokenVerifier:
-    return build_verifier()
-
-
-VerifierDep = Annotated[IdTokenVerifier, Depends(get_id_token_verifier)]

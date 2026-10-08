@@ -17,10 +17,9 @@ HANDLE_PATTERN = r"^[a-z0-9_]{3,30}$"
 class User(Base):
     """A Flexin' account. Mirrors the app's `Me` / `UserSummary` types (src/data/mock-data.ts).
 
-    Accounts are created on first Sign in with Apple / Google (see AuthIdentity).
-    Apple only shares name and email on the very first sign-in, and the user can
-    withhold them, so `email`, `name` and `handle` start out possibly null. The
-    app collects name + handle in onboarding; `handle IS NULL` means not onboarded.
+    Created by signing up with email + password. Name and handle are collected
+    in onboarding right after, so they start out null; `handle IS NULL` means
+    not onboarded yet.
     """
 
     __tablename__ = "users"
@@ -31,9 +30,10 @@ class User(Base):
         default=uuid.uuid4,
         server_default=text("gen_random_uuid()"),
     )
-    # From the sign-in provider; may be an Apple private-relay address, or absent.
-    # Unique case-insensitively when present (see ix_users_email_lower below).
-    email: Mapped[str | None] = mapped_column(String(320))
+    # Sign-in identifier. Unique case-insensitively (see ix_users_email_lower below).
+    email: Mapped[str] = mapped_column(String(320))
+    # Argon2id hash (includes salt and parameters). Never the password itself.
+    password_hash: Mapped[str] = mapped_column(String(255))
     name: Mapped[str | None] = mapped_column(String(50))
     # Lowercase, shown as @handle. Unique; format enforced by ck_users_handle_format.
     handle: Mapped[str | None] = mapped_column(String(30), unique=True)

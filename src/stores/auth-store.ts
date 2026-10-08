@@ -12,7 +12,6 @@ import {
   type HandleAvailability,
   type TokenResponse,
 } from '@/lib/api';
-import { signOutOfGoogle, type AppleCredential, type GoogleCredential } from '@/lib/social-sign-in';
 import { tokenStorage } from '@/lib/token-storage';
 import { createStore } from '@/stores/create-store';
 
@@ -94,22 +93,25 @@ export const authActions = {
     }
   },
 
-  async signInWithApple(credential: AppleCredential): Promise<void> {
+  /** Create an account. A 409 ApiError means the email already has one. */
+  async signUp(email: string, password: string): Promise<void> {
     await applyTokens(
-      await api<TokenResponse>('/auth/apple', { method: 'POST', body: credential, authenticated: false }),
+      await api<TokenResponse>('/auth/signup', {
+        method: 'POST',
+        body: { email: email.trim(), password },
+        authenticated: false,
+      }),
     );
   },
 
-  async signInWithGoogle(credential: GoogleCredential): Promise<void> {
+  /** A 401 ApiError means the email or password is wrong (the server doesn't say which). */
+  async logIn(email: string, password: string): Promise<void> {
     await applyTokens(
-      await api<TokenResponse>('/auth/google', { method: 'POST', body: credential, authenticated: false }),
-    );
-  },
-
-  /** Development-only server endpoint: sign in as a test account by email. */
-  async devSignIn(email: string): Promise<void> {
-    await applyTokens(
-      await api<TokenResponse>('/auth/dev', { method: 'POST', body: { email }, authenticated: false }),
+      await api<TokenResponse>('/auth/login', {
+        method: 'POST',
+        body: { email: email.trim(), password },
+        authenticated: false,
+      }),
     );
   },
 
@@ -131,7 +133,6 @@ export const authActions = {
         () => undefined,
       );
     }
-    await signOutOfGoogle();
     await clearLocalSession();
   },
 };

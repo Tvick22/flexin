@@ -41,7 +41,7 @@ export function SettingsScreen() {
         <Card style={styles.rows}>
           <Row label="Name" value={me.name ?? '—'} />
           <Row label="Handle" value={me.handle ? `@${me.handle}` : '—'} />
-          <Row label="Email" value={me.email ?? 'Hidden'} />
+          <Row label="Email" value={me.email} />
           <Row label="Friend code" value={formatFriendCode(me.friendCode)} last />
         </Card>
 
@@ -73,7 +73,7 @@ export function SettingsScreen() {
       <ConfirmSheet
         visible={confirmSignOut}
         title="Sign out?"
-        body="You can sign back in any time with the same Apple or Google account."
+        body="You can sign back in any time with your email and password."
         confirmLabel="Sign out"
         destructive
         onConfirm={() => {

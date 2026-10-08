@@ -5,11 +5,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.id_tokens import VerifiedIdentity
-from app.models import AuthIdentity, AuthSession, User
+from app.models import AuthSession, User
+from app.passwords import hash_password, needs_rehash, verify_password
 from app.security import create_access_token, hash_refresh_token, new_refresh_token
 
 
@@ -24,72 +25,42 @@ class IssuedTokens:
     expires_in: int
 
 
-def _clean_name(name: str | None) -> str | None:
-    name = " ".join((name or "").split())
-    return name[:50] or None
+class EmailTaken(Exception):
+    pass
 
 
-async def sign_in(
-    db: AsyncSession, identity: VerifiedIdentity, name_hint: str | None = None
-) -> tuple[User, bool]:
-    """Find or create the account for a verified provider identity.
+class InvalidCredentials(Exception):
+    pass
 
-    Returns (user, is_new_user). Lookup is by the provider's stable `sub`. A new
-    identity is linked to an existing account only when the provider has
-    verified the same email (e.g. Google on Android after Apple on iPhone);
-    otherwise a new account is created.
-    """
-    now = datetime.now(UTC)
-    linked = await db.scalar(
-        select(AuthIdentity).where(
-            AuthIdentity.provider == identity.provider,
-            AuthIdentity.subject == identity.subject,
-        )
-    )
-    if linked is not None:
-        linked.last_used_at = now
-        if identity.email:
-            linked.email = identity.email
-        user = await db.get(User, linked.user_id)
-        assert user is not None  # FK + cascade guarantee this
+
+async def _find_by_email(db: AsyncSession, email: str) -> User | None:
+    return await db.scalar(select(User).where(func.lower(User.email) == email.strip().lower()))
+
+
+async def sign_up(db: AsyncSession, email: str, password: str) -> User:
+    """Create an account. Raises EmailTaken if the email (any case) already has one."""
+    if await _find_by_email(db, email) is not None:
+        raise EmailTaken(email)
+    user = User(email=email.strip(), password_hash=hash_password(password))
+    db.add(user)
+    try:
         await db.commit()
-        return user, False
-
-    verified_email = identity.email if identity.email_verified else None
-    user = None
-    if verified_email:
-        user = await db.scalar(select(User).where(func.lower(User.email) == verified_email.lower()))
-        if user is not None and await _has_provider(db, user.id, identity.provider):
-            # Same email, but that account already has a different identity from this
-            # provider. Don't merge; keep the existing account's email untouched.
-            user, verified_email = None, None
-
-    is_new = user is None
-    if user is None:
-        user = User(email=verified_email, name=_clean_name(name_hint or identity.name))
-        db.add(user)
-        await db.flush()
-
-    db.add(
-        AuthIdentity(
-            user_id=user.id,
-            provider=identity.provider,
-            subject=identity.subject,
-            email=identity.email,
-        )
-    )
-    await db.commit()
+    except IntegrityError as exc:  # lost a race with a simultaneous sign-up
+        await db.rollback()
+        raise EmailTaken(email) from exc
     await db.refresh(user)
-    return user, is_new
+    return user
 
 
-async def _has_provider(db: AsyncSession, user_id: uuid.UUID, provider: str) -> bool:
-    found = await db.scalar(
-        select(AuthIdentity.id).where(
-            AuthIdentity.user_id == user_id, AuthIdentity.provider == provider
-        )
-    )
-    return found is not None
+async def log_in(db: AsyncSession, email: str, password: str) -> User:
+    """Raises InvalidCredentials for an unknown email or a wrong password, alike."""
+    user = await _find_by_email(db, email)
+    if not verify_password(user.password_hash if user else None, password) or user is None:
+        raise InvalidCredentials()
+    if needs_rehash(user.password_hash):
+        user.password_hash = hash_password(password)
+        await db.commit()
+    return user
 
 
 async def start_session(db: AsyncSession, user: User) -> IssuedTokens:
