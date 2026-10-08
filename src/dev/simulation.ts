@@ -1,19 +1,17 @@
 /**
  * DEV ONLY — fakes the other side of the network so the live UI can be built
- * without a backend. Stands in for the challenge WebSocket and friend API:
+ * without a backend. Stands in for the challenge WebSocket:
  *  - invited friends join your lobby a few seconds after you create it,
  *  - challenges hosted by someone else (join code MAYA42) get started, and
  *    later ended, by that host,
- *  - other participants in a live challenge log sets every so often, and
- *  - friend requests sent to a mock friend code get accepted after a moment.
+ *  - other participants in a live challenge log sets every so often.
  *
  * Delete this file (and its call in app/_layout.tsx) once the backend exists.
  */
 
 import { EXERCISES, type Exercise } from '@/data/exercises';
-import { mockFriendCodeDirectory, mockMe, type Challenge } from '@/data/mock-data';
+import { mockMe, type Challenge } from '@/data/mock-data';
 import { challengeActions, getChallengeState, subscribeChallenges } from '@/stores/challenge-store';
-import { friendsActions, getFriendsState, subscribeFriends } from '@/stores/friends-store';
 
 export const SIMULATE = __DEV__;
 
@@ -94,18 +92,6 @@ function simulateChallenge(c: Challenge) {
   }
 }
 
-function autoAcceptMockRequests() {
-  const mockIds = new Set(Object.values(mockFriendCodeDirectory).map((u) => u.id));
-  for (const r of getFriendsState().requests) {
-    if (r.direction !== 'outgoing' || !mockIds.has(r.user.id)) continue;
-    once(`accept:${r.id}`, () =>
-      setTimeout(() => {
-        if (getFriendsState().requests.some((x) => x.id === r.id)) friendsActions.accept(r.id);
-      }, 3_000),
-    );
-  }
-}
-
 let started = false;
 
 export function startDevSimulation() {
@@ -114,5 +100,4 @@ export function startDevSimulation() {
   subscribeChallenges(() => {
     for (const c of getChallengeState().challenges) if (c.status !== 'finished') simulateChallenge(c);
   });
-  subscribeFriends(autoAcceptMockRequests);
 }

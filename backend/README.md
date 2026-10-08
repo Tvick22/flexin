@@ -54,6 +54,22 @@ To reach the API from a phone on the same Wi-Fi, use `npm run api:lan` (binds to
 Config (`backend/.env`): `JWT_SECRET`. With `ENVIRONMENT=production` the server refuses
 to start with the development `JWT_SECRET`.
 
+## Friends
+
+All need a finished profile (name + handle); otherwise 403.
+
+| Endpoint | |
+| --- | --- |
+| `GET /friends` | Your friends, newest first: `[{ user, since }]` |
+| `DELETE /friends/{userId}` | Unfriend → 204 |
+| `GET /friends/requests` | Pending requests: `[{ id, direction: "incoming" \| "outgoing", user, createdAt }]` |
+| `POST /friends/requests` | `{ friendCode }` (dashes/case ignored) → 201. 404 unknown code, 400 your own, 409 already friends or already requested (either direction) |
+| `POST /friends/requests/{id}/accept` | Recipient only → `{ user, since }` |
+| `DELETE /friends/requests/{id}` | Decline (recipient) or cancel (sender) → 204 |
+
+Friendships are stored once per pair (`user_low_id < user_high_id`). There are no live
+updates yet: the app reloads friends when the Friends tab is opened.
+
 ## Tests and linting
 
 ```bash
@@ -89,9 +105,9 @@ app/
   main.py        FastAPI app, CORS, routers
   config.py      settings from env vars / backend/.env
   db.py          async SQLAlchemy engine, session dependency, Base
-  models/        ORM models: users, sessions
-  routers/       HTTP endpoints: health, auth, me
-  services/      business logic (sign-in, session rotation)
+  models/        ORM models: users, sessions, friend_requests, friendships
+  routers/       HTTP endpoints: health, auth, me, friends
+  services/      business logic (auth + sessions, friends)
   schemas.py     request/response models (camelCase JSON)
   deps.py        CurrentUser (bearer auth)
   passwords.py   Argon2id password hashing

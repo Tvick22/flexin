@@ -49,3 +49,15 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_onboarded_user(user: CurrentUser) -> User:
+    """For features where others see you (friends, challenges): needs a name + handle."""
+    if not user.onboarded:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Finish setting up your profile first."
+        )
+    return user
+
+
+OnboardedUser = Annotated[User, Depends(get_onboarded_user)]

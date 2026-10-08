@@ -2,6 +2,7 @@
 
 import re
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -69,6 +70,35 @@ class HandleAvailability(CamelModel):
     handle: str
     available: bool
     reason: Literal["taken", "invalid"] | None = None
+
+
+# --- Friends -----------------------------------------------------------------
+
+
+class UserSummary(CamelModel):
+    """Another user as you see them. Matches the app's `UserSummary`."""
+
+    id: uuid.UUID
+    name: str
+    handle: str
+    avatar_url: str | None
+
+
+class FriendRead(CamelModel):
+    user: UserSummary
+    since: datetime
+
+
+class FriendRequestRead(CamelModel):
+    id: uuid.UUID
+    direction: Literal["incoming", "outgoing"]
+    user: UserSummary
+    created_at: datetime
+
+
+class SendFriendRequest(CamelModel):
+    # Spaces, dashes and case are ignored ("7k2q-9mxp" works).
+    friend_code: str = Field(max_length=20)
 
 
 # --- Auth --------------------------------------------------------------------

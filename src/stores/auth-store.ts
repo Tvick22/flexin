@@ -13,6 +13,7 @@ import {
   type TokenResponse,
 } from '@/lib/api';
 import { tokenStorage } from '@/lib/token-storage';
+import { friendsActions } from '@/stores/friends-store';
 import { createStore } from '@/stores/create-store';
 
 type Status = 'restoring' | 'signedOut' | 'signedIn';
@@ -43,6 +44,7 @@ async function applyTokens(res: TokenResponse): Promise<void> {
 
 async function clearLocalSession(): Promise<void> {
   await tokenStorage.clear();
+  friendsActions.reset();
   store.set({ status: 'signedOut', user: null, accessToken: null, restoreError: null });
 }
 

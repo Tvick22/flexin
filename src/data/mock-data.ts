@@ -77,10 +77,6 @@ const me: UserSummary = { id: 'u_me', name: 'Trevor Vick', handle: 'tvick', avat
 
 export const mockMe: Me = { ...me, unit: 'lb', friendCode: '7K2Q9MXP' };
 
-export const mockFriends: Friend[] = [];
-
-export const mockFriendRequests: FriendRequest[] = [];
-
 export const mockChallenges: Challenge[] = [];
 
 /**
@@ -97,14 +93,4 @@ export const mockChallengeCodeDirectory: Record<
     host: { id: 'u_maya', name: 'Maya Chen', handle: 'mayalifts', avatarUrl: null },
     others: [{ id: 'u_sam', name: 'Sam Okafor', handle: 'samo', avatarUrl: null }],
   },
-};
-
-/**
- * Stand-in for looking up a friend code on the server, so the Add flow can be
- * tried before the backend exists. Enter one of these keys as a friend code.
- */
-export const mockFriendCodeDirectory: Record<string, UserSummary> = {
-  MAYA2CHN: { id: 'u_maya', name: 'Maya Chen', handle: 'mayalifts', avatarUrl: null },
-  JRDN4RYS: { id: 'u_jordan', name: 'Jordan Reyes', handle: 'jreyes', avatarUrl: null },
-  SAM6KFR9: { id: 'u_sam', name: 'Sam Okafor', handle: 'samo', avatarUrl: null },
 };
