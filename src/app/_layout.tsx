@@ -31,7 +31,6 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="challenge/new" options={{ presentation: 'modal' }} />
           <Stack.Screen name="challenge/[id]" />
-          <Stack.Screen name="challenge/pick-exercise" options={{ presentation: 'modal' }} />
           <Stack.Screen name="join/index" options={{ presentation: 'modal' }} />
           <Stack.Screen name="join/[code]" />
           <Stack.Screen name="settings" />

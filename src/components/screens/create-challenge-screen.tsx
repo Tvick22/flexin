@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,7 +7,7 @@ import { Avatar, Icon, IconButton, SectionHeader } from '@/components/flexin/ui'
 import { Colors, Radius, Space, Type } from '@/constants/flexin-theme';
 import type { ChallengeMetric } from '@/data/mock-data';
 import { METRICS, challengeActions } from '@/stores/challenge-store';
-import { useFriendsStore } from '@/stores/friends-store';
+import { friendsActions, useFriendsStore } from '@/stores/friends-store';
 
 const METRIC_ORDER: ChallengeMetric[] = ['volume', 'reps', 'heaviest'];
 
@@ -24,6 +24,10 @@ function defaultName(names: string[]): string {
 
 export function CreateChallengeScreen() {
   const friends = useFriendsStore((s) => s.friends);
+  // Usually already loaded by the tabs, but this screen can be opened directly.
+  useEffect(() => {
+    friendsActions.load();
+  }, []);
   // Opened from a friend's "Challenge" button → that friend starts invited.
   const { friend } = useLocalSearchParams<{ friend?: string }>();
   const [invited, setInvited] = useState<string[]>(() => (friend ? [friend] : []));

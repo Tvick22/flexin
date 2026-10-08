@@ -40,12 +40,14 @@ export type FriendRequest = {
 
 export type ChallengeMetric = 'volume' | 'reps' | 'heaviest';
 
-/** One logged set, by any participant. Over the socket: `set.logged`. */
+/**
+ * One logged set, by any participant. Over the socket: `set.logged`.
+ * No exercise: every set counts toward the score, whatever the movement.
+ * weight 0 = bodyweight.
+ */
 export type ChallengeSet = {
   id: string;
   userId: string;
-  exerciseId: string;
-  exerciseName: string;
   weight: number;
   reps: number;
   loggedAt: string;

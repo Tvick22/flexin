@@ -9,7 +9,6 @@
  * Delete this file (and its call in app/_layout.tsx) once the backend exists.
  */
 
-import { EXERCISES, type Exercise } from '@/data/exercises';
 import { mockMe, type Challenge } from '@/data/mock-data';
 import { challengeActions, getChallengeState, subscribeChallenges } from '@/stores/challenge-store';
 
@@ -29,26 +28,21 @@ function baseWeight(userId: string): number {
   return 95 + (h % 12) * 10; // 95–205
 }
 
-function weightFor(userId: string, exercise: Exercise): number {
-  if (exercise.equipment === 'Bodyweight') return 0;
-  const scale = exercise.equipment === 'Dumbbell' ? 0.35 : exercise.equipment === 'Barbell' ? 1 : 0.7;
-  return Math.max(5, Math.round((baseWeight(userId) * scale * rand(0.85, 1.15)) / 5) * 5);
+/** A plausible next set: mostly loaded, some bodyweight (0) in rep challenges. */
+function nextSet(userId: string, c: Challenge): { weight: number; reps: number } {
+  const reps = Math.round(rand(5, 12));
+  if (c.metric === 'reps' && Math.random() < 0.3) return { weight: 0, reps };
+  // Mix of heavy compound sets and lighter accessory work.
+  const scale = pick([1, 1, 0.7, 0.5, 0.35]);
+  const weight = Math.max(5, Math.round((baseWeight(userId) * scale * rand(0.85, 1.15)) / 5) * 5);
+  return { weight, reps };
 }
 
 function logOpponentSet(c: Challenge) {
   const others = c.participants.filter((p) => p.id !== mockMe.id);
   if (others.length === 0) return;
   const who = pick(others);
-  // Bodyweight sets score 0 for volume/heaviest, which makes for a dull demo.
-  const pool = c.metric === 'reps' ? EXERCISES : EXERCISES.filter((e) => e.equipment !== 'Bodyweight');
-  const exercise = pick(pool);
-  challengeActions.addSet(c.id, {
-    userId: who.id,
-    exerciseId: exercise.id,
-    exerciseName: exercise.name,
-    weight: weightFor(who.id, exercise),
-    reps: Math.round(rand(5, 12)),
-  });
+  challengeActions.addSet(c.id, { userId: who.id, ...nextSet(who.id, c) });
 }
 
 const handled = new Set<string>(); // `${kind}:${id}` so each thing is scheduled once

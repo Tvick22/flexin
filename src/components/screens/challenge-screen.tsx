@@ -8,7 +8,6 @@ import { JoinCodeCard } from '@/components/flexin/join-code';
 import { Stepper } from '@/components/flexin/stepper';
 import { Avatar, Card, ConfirmSheet, EmptyState, Icon, IconButton, RankBadge, SectionHeader } from '@/components/flexin/ui';
 import { Colors, Radius, Space, Type, rankColor } from '@/constants/flexin-theme';
-import { EXERCISES } from '@/data/exercises';
 import { mockMe, type Challenge, type ChallengeSet } from '@/data/mock-data';
 import { useNow } from '@/hooks/use-now';
 import {
@@ -37,12 +36,9 @@ function firstName(s: Standing) {
   return s.isMe ? 'You' : s.user.name.split(' ')[0];
 }
 
-function isBodyweight(exerciseId: string | null) {
-  return EXERCISES.find((e) => e.id === exerciseId)?.equipment === 'Bodyweight';
-}
-
-function setText(set: Pick<ChallengeSet, 'weight' | 'reps' | 'exerciseId'>) {
-  const w = set.weight === 0 && isBodyweight(set.exerciseId) ? 'BW' : `${formatWeight(set.weight)} ${unit}`;
+/** "185 lb × 8", or "BW × 12" for bodyweight (weight 0). */
+function setText(set: Pick<ChallengeSet, 'weight' | 'reps'>) {
+  const w = set.weight === 0 ? 'BW' : `${formatWeight(set.weight)} ${unit}`;
   return `${w} × ${set.reps}`;
 }
 
@@ -291,7 +287,7 @@ function Scoreboard({ challenge, standings }: { challenge: Challenge; standings:
               </View>
               <Text style={[Type.caption, { color: Colors.onInkCardMuted }]} numberOfLines={1}>
                 {s.lastSet
-                  ? `${s.lastSet.exerciseName} ${setText(s.lastSet)} · ${timeAgo(s.lastSet.loggedAt, now)}`
+                  ? `Last set ${setText(s.lastSet)} · ${timeAgo(s.lastSet.loggedAt, now)}`
                   : 'No sets yet'}
               </Text>
             </View>
@@ -305,9 +301,8 @@ function Scoreboard({ challenge, standings }: { challenge: Challenge; standings:
 function SetLogger({ challenge }: { challenge: Challenge }) {
   const logger = useChallengeStore((s) => loggerFor(s, challenge.id));
   const { weight, reps } = logger.draft;
-  const bodyweight = isBodyweight(logger.exerciseId);
   const mySets = challenge.sets.filter((s) => s.userId === mockMe.id);
-  const canLog = logger.exerciseId !== null && reps > 0;
+  const canLog = reps > 0;
 
   // What this set adds to your score, so every log feels like it moves the board.
   const myBest = scoreSets(mySets, 'heaviest');
@@ -316,76 +311,48 @@ function SetLogger({ challenge }: { challenge: Challenge }) {
       ? Math.max(0, weight - myBest)
       : setScore({ weight, reps }, challenge.metric);
 
-  function pickExercise() {
-    router.push({ pathname: '/challenge/pick-exercise', params: { id: challenge.id } });
-  }
-
   return (
     <View>
       <SectionHeader title="Your next set" />
       <Card style={styles.logger}>
-        {logger.exerciseId === null ? (
-          <Pressable
-            onPress={pickExercise}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.pickBox, pressed && { opacity: 0.6 }]}>
-            <View style={styles.pickIcon}>
-              <Icon name="plus" size={18} />
-            </View>
-            <Text style={[Type.heading, { color: Colors.text }]}>Pick an exercise</Text>
-            <Text style={[Type.caption, { color: Colors.textMuted }]}>Then log each set as you finish it.</Text>
-          </Pressable>
-        ) : (
-          <>
-            <Pressable
-              onPress={pickExercise}
-              accessibilityRole="button"
-              accessibilityLabel={`Exercise: ${logger.exerciseName}. Change exercise`}
-              style={({ pressed }) => [styles.exerciseRow, pressed && styles.pressed]}>
-              <Text style={[Type.heading, { color: Colors.text, flex: 1 }]} numberOfLines={1}>
-                {logger.exerciseName}
-              </Text>
-              <Text style={[Type.caption, { color: Colors.textMuted, fontWeight: '800' }]}>Change</Text>
-              <Icon name="chevron" size={12} color={Colors.textMuted} />
-            </Pressable>
+        <Text style={[Type.caption, { color: Colors.textMuted }]}>
+          Any movement counts. Leave weight empty for bodyweight.
+        </Text>
+        <View style={styles.steppers}>
+          <Stepper
+            label={unit}
+            value={weight}
+            step={WEIGHT_STEP}
+            decimals
+            emptyText="BW"
+            onChange={(v) => challengeActions.setDraft(challenge.id, { weight: v })}
+            accessibilityName="Weight"
+          />
+          <Stepper
+            label="reps"
+            value={reps}
+            step={1}
+            emptyText="0"
+            onChange={(v) => challengeActions.setDraft(challenge.id, { reps: v })}
+            accessibilityName="Reps"
+          />
+        </View>
 
-            <View style={styles.steppers}>
-              <Stepper
-                label={unit}
-                value={weight}
-                step={WEIGHT_STEP}
-                decimals
-                emptyText={bodyweight ? 'BW' : '0'}
-                onChange={(v) => challengeActions.setDraft(challenge.id, { weight: v })}
-                accessibilityName="Weight"
-              />
-              <Stepper
-                label="reps"
-                value={reps}
-                step={1}
-                emptyText="0"
-                onChange={(v) => challengeActions.setDraft(challenge.id, { reps: v })}
-                accessibilityName="Reps"
-              />
-            </View>
-
-            <Pressable
-              onPress={() => challengeActions.logSet(challenge.id)}
-              disabled={!canLog}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canLog }}
-              accessibilityLabel={`Log set, ${setText({ weight, reps, exerciseId: logger.exerciseId })}, plus ${formatScore(gain, challenge.metric)}`}
-              style={({ pressed }) => [styles.logButton, !canLog && styles.disabled, pressed && styles.pressed]}>
-              <Icon name="check" size={18} color={Colors.onPrimary} />
-              <Text style={[Type.heading, { color: Colors.onPrimary }]}>Log set</Text>
-              <View style={styles.gainPill}>
-                <Text style={[Type.caption, Type.number, { color: Colors.onPrimary, fontWeight: '900' }]}>
-                  +{formatScore(gain, challenge.metric)}
-                </Text>
-              </View>
-            </Pressable>
-          </>
-        )}
+        <Pressable
+          onPress={() => challengeActions.logSet(challenge.id)}
+          disabled={!canLog}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canLog }}
+          accessibilityLabel={`Log set, ${setText({ weight, reps })}, plus ${formatScore(gain, challenge.metric)}`}
+          style={({ pressed }) => [styles.logButton, !canLog && styles.disabled, pressed && styles.pressed]}>
+          <Icon name="check" size={18} color={Colors.onPrimary} />
+          <Text style={[Type.heading, { color: Colors.onPrimary }]}>Log set</Text>
+          <View style={styles.gainPill}>
+            <Text style={[Type.caption, Type.number, { color: Colors.onPrimary, fontWeight: '900' }]}>
+              +{formatScore(gain, challenge.metric)}
+            </Text>
+          </View>
+        </Pressable>
       </Card>
     </View>
   );
@@ -406,7 +373,7 @@ function MySets({ challenge }: { challenge: Challenge }) {
               <Text style={[Type.caption, Type.number, styles.setIndex]}>{i + 1}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[Type.bodyStrong, Type.number, { color: Colors.text }]}>{setText(s)}</Text>
-                <Text style={[Type.caption, { color: Colors.textMuted }]}>{s.exerciseName}</Text>
+                <Text style={[Type.caption, { color: Colors.textMuted }]}>{timeAgo(s.loggedAt)}</Text>
               </View>
               {challenge.metric !== 'heaviest' ? (
                 <Text style={[Type.caption, Type.number, { color: Colors.textMuted }]}>
@@ -451,7 +418,7 @@ function Feed({ challenge }: { challenge: Challenge }) {
                 <Avatar name={user?.name ?? '?'} size={32} />
                 <View style={{ flex: 1 }}>
                   <Text style={[Type.caption, { color: Colors.text }]} numberOfLines={1}>
-                    <Text style={{ fontWeight: '800' }}>{user?.name.split(' ')[0]}</Text> · {s.exerciseName} {setText(s)}
+                    <Text style={{ fontWeight: '800' }}>{user?.name.split(' ')[0]}</Text> · {setText(s)}
                   </Text>
                   <Text style={[Type.caption, { color: Colors.textMuted }]}>{timeAgo(s.loggedAt, now)}</Text>
                 </View>
@@ -645,30 +612,6 @@ const styles = StyleSheet.create({
   logger: {
     borderWidth: 1.5,
     borderColor: Colors.text,
-  },
-  pickBox: {
-    alignItems: 'center',
-    gap: Space.xs,
-    paddingVertical: Space.lg,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: Colors.textFaint,
-    backgroundColor: Colors.wash,
-  },
-  pickIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Space.xs,
-  },
-  exerciseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
   steppers: {
     flexDirection: 'row',

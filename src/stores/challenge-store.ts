@@ -6,7 +6,6 @@
  * `set.logged` into the matching actions below.
  */
 
-import type { Exercise } from '@/data/exercises';
 import {
   mockChallengeCodeDirectory,
   mockChallenges,
@@ -20,10 +19,8 @@ import { createStore, newId } from '@/stores/create-store';
 import { formatNumber, formatWeight } from '@/utils/format';
 import { generateJoinCode } from '@/utils/join-code';
 
-/** Your in-progress set for a live challenge. UI-only; never sent to the server. */
+/** Your next set for a live challenge. UI-only; never sent to the server. */
 export type LoggerState = {
-  exerciseId: string | null;
-  exerciseName: string | null;
   draft: { weight: number; reps: number };
 };
 
@@ -39,7 +36,7 @@ export const getChallengeState = store.get;
 export const subscribeChallenges = store.subscribe;
 
 const DEFAULT_REPS = 8;
-const EMPTY_LOGGER: LoggerState = { exerciseId: null, exerciseName: null, draft: { weight: 0, reps: DEFAULT_REPS } };
+const EMPTY_LOGGER: LoggerState = { draft: { weight: 0, reps: DEFAULT_REPS } };
 
 export function loggerFor(state: State, challengeId: string): LoggerState {
   return state.loggers[challengeId] ?? EMPTY_LOGGER;
@@ -250,11 +247,9 @@ export const challengeActions = {
   /** Logs your current draft. The draft stays put so the next set is one tap. */
   logSet(challengeId: string) {
     const l = loggerFor(store.get(), challengeId);
-    if (!l.exerciseId || !l.exerciseName || l.draft.reps <= 0) return;
+    if (l.draft.reps <= 0) return;
     challengeActions.addSet(challengeId, {
       userId: mockMe.id,
-      exerciseId: l.exerciseId,
-      exerciseName: l.exerciseName,
       weight: l.draft.weight,
       reps: l.draft.reps,
     });
@@ -266,20 +261,8 @@ export const challengeActions = {
     );
   },
 
-  /** Switch exercise; prefill from your last set of it in this challenge. */
-  selectExercise(challengeId: string, exercise: Exercise) {
-    const c = store.get().challenges.find((x) => x.id === challengeId);
-    const last = c?.sets.filter((s) => s.userId === mockMe.id && s.exerciseId === exercise.id).at(-1);
-    updateLogger(challengeId, (l) => ({
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-      draft: last ? { weight: last.weight, reps: last.reps } : { weight: 0, reps: l.draft.reps || DEFAULT_REPS },
-    }));
-  },
-
   setDraft(challengeId: string, draft: Partial<LoggerState['draft']>) {
     updateLogger(challengeId, (l) => ({
-      ...l,
       draft: {
         weight: Math.max(0, draft.weight ?? l.draft.weight),
         reps: Math.max(0, Math.round(draft.reps ?? l.draft.reps)),
